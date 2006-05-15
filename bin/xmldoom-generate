@@ -1,0 +1,200 @@
+#!/usr/bin/perl
+
+use Template;
+use File::ShareDir;
+use File::Spec;
+use File::Basename;
+use IO::File;
+use Xmldoom::Definition;
+use Getopt::Std qw( getopts );
+use strict;
+
+# for debugging
+use Data::Dumper;
+use Carp;
+
+$SIG{__DIE__} = sub {
+	Carp::confess(@_);
+	#Carp::confess;
+};
+
+sub get_template
+{
+	my $tpl_name = shift;
+
+	# TODO: find a better way to do this!
+	if ( -e "share/tpl/$tpl_name.tpl" )
+	{
+		return File::Spec->rel2abs("share/tpl/$tpl_name.tpl");
+	}
+
+	return File::ShareDir::dist_file('Xmldoom', "tpl/$tpl_name.tpl");
+}
+
+sub generate_javascript
+{
+	my $database = shift;
+	my $prefix   = shift;
+	my $output   = shift;
+
+	my $tpl = Template->new({
+		ABSOLUTE => 1
+	});
+
+	my ($basename, $tmp, $tmp) = fileparse( $output, qr/\.[^.]*/ );
+
+	my $vars = {
+		objects   => undef,
+		conn_name => $prefix . "._connection",
+		class_map => $prefix . ".CLASSES",
+		ns_prefix => $prefix,
+		output_basename => $basename,
+	};
+
+	my @objects;
+
+	foreach my $object ( values %{$database->get_objects()} )
+	{
+		#print Dumper $object;
+		my $obj_data = {
+			class_name => $prefix . "." . $object->get_name(),
+			name       => $object->get_name(),
+			properties => [ ],
+			attributes => [ ],
+			keys_list  => [ ],
+		};
+
+		foreach my $column ( @{$object->get_table()->get_columns()} )
+		{
+			my $type = $object->get_table()->get_column_type( $column->{name} );
+
+			my $attr_data = {
+				name    => $column->{name},
+				default => 'null',
+			};
+
+			if ( $type->{type} eq 'string' or $type->{type} eq 'date' )
+			{
+				if ( defined $column->{default} )
+				{
+					$attr_data->{default} = sprintf("'%s'", $column->{default});
+				}
+				else
+				{
+					$attr_data->{default} = "''";
+				}
+			}
+			elsif ( ($type->{type} eq 'integer' or $type->{type} eq 'float')
+			        and defined $column->{default} )
+			{
+				$attr_data->{default} = $column->{default};
+			}
+
+			push @{$obj_data->{attributes}}, $attr_data;
+
+			# add to the keys if necessary
+			if ( $column->{primary_key} )
+			{
+				push @{$obj_data->{keys_list}}, { name => $column->{name}, default => 'null' };
+			}
+		}
+
+		foreach my $prop ( @{$object->get_properties()} )
+		{
+			# TODO: We should actuall make this dependant on the property 
+			# classes involved!
+			if ( not $prop->isa('Xmldoom::Definition::Property::Simple') and
+			     not $prop->isa('Xmldoom::Definition::Property::Object') )
+			{
+				next;
+			}
+			
+			#my $type = $prop->get_data_type({ include_options => 0 });
+
+			my $prop_data = {
+				name     => $prop->get_name(),
+				get_name => $prop->get_autoload_get_list()->[0],
+				set_name => $prop->get_autoload_set_list()->[0],
+			};
+
+			if ( $prop->isa('Xmldoom::Definition::Property::Simple') )
+			{
+				$prop_data->{type} = 'simple';
+				$prop_data->{attr} = $prop->get_attr();
+			}
+			elsif ( $prop->isa('Xmldoom::Definition::Property::Object' ) )
+			{
+				$prop_data->{type}         = 'object';
+				$prop_data->{class_name}   = $prefix . "." . $prop->get_object_name();
+				$prop_data->{object_name}  = $prop->get_object_name();
+				$prop_data->{relationship} = $prop->get_type();
+				$prop_data->{obj_conns}    = [ ];
+
+				foreach my $conn ( @{$object->find_connections($prop->get_object_name())} )
+				{
+					push @{$prop_data->{obj_conns}}, {
+						self  => $conn->{local_column},
+						other => $conn->{foreign_column},
+					};
+				}
+			}
+
+			push @{$obj_data->{properties}}, $prop_data;
+		}
+
+		push @objects, $obj_data;
+	}
+
+	my @sorted = sort {$a->{name} cmp $b->{name}} @objects;
+	$vars->{objects} = \@sorted;
+	#$vars->{objects} = \@{sort {$a->{name} cmp $b->{name}} @objects};
+
+	$tpl->process(get_template('javascript'), $vars, $output)
+		|| die $tpl->error(), "\n";
+}
+
+sub main
+{
+	my %conf;
+
+	getopts('l:D:X:N:o:', \%conf);
+
+	if ( not defined $conf{l} )
+	{
+		die "Must pass a language -l to generate";
+	}
+	if ( $conf{l} ne 'javascript' )
+	{
+		die "Currently only -l javascript is supported";
+	}
+	if ( not defined $conf{D} or not defined $conf{X} )
+	{
+		die "Must set both -D database.xml and -X objects.xml for the desired database";
+	}
+	if ( not defined $conf{N} )
+	{
+		die "Must define a namespace prefix with -N Namespace.Prefix";
+	}
+
+	my $language     = $conf{l};
+	my $database_xml = $conf{D};
+	my $objects_xml  = $conf{X};
+	my $prefix       = $conf{N};
+	my $output       = $conf{o};
+
+	# load the Xmldoom data
+	my $database = Xmldoom::Definition::parse_database_uri($database_xml);
+	Xmldoom::Definition::parse_object_uri($database, $objects_xml);
+
+	if ( $language eq 'javascript' )
+	{
+		generate_javascript($database, $prefix, $output);
+	}
+	else
+	{
+		die "Unsupported language type: " . $language;
+	}
+}
+
+main;
+
