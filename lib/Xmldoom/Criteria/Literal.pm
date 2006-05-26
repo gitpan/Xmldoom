@@ -2,7 +2,7 @@
 package Xmldoom::Criteria::Literal;
 
 use Xmldoom::Object;
-use Roma::Query::SQL::Literal;
+use DBIx::Romani::Query::SQL::Literal;
 use strict;
 
 sub new
@@ -58,7 +58,7 @@ sub get_query_rval
 	}
 	else
 	{
-		return [ Roma::Query::SQL::Literal->new( $value ) ];
+		return [ DBIx::Romani::Query::SQL::Literal->new( $value ) ];
 	}
 }
 

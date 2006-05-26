@@ -4,10 +4,10 @@ package Xmldoom::Object;
 use Xmldoom::Definition;
 use Xmldoom::Object::Property;
 use Xmldoom::ResultSet;
-use Roma::Query::Function::Now;
-use Roma::Query::Function::Count;
-use Roma::Query::SQL::Literal;
-use Roma::Query::SQL::Null;
+use DBIx::Romani::Query::Function::Now;
+use DBIx::Romani::Query::Function::Count;
+use DBIx::Romani::Query::SQL::Literal;
+use DBIx::Romani::Query::SQL::Null;
 use Exception::Class::DBI;
 use Exception::Class::TryCatch;
 use Scalar::Util qw(weaken isweak);
@@ -46,7 +46,12 @@ sub load
 	my $definition = $OBJECTS{$class};
 	my $data       = $definition->load( @_ );
 
-	return $class->new({ data => $data });
+	my $result = $class->new({ data => $data });
+	
+	# call user handler
+	$result->_on_load();
+
+	return $result;
 }
 
 sub SearchRS
@@ -307,6 +312,9 @@ sub save
 		$commit     = 1;
 	}
 
+	# call the user handler
+	$self->_before_save( $status );
+
 	try eval
 	{
 		# save yourself!
@@ -361,9 +369,9 @@ sub do_save
 	my $table      = $definition->get_table();
 	my $table_name = $definition->get_table_name();
 
-	my $id_gen;
 	my $query;
 	my $values = { };
+	my $id_gen = { };
 
 	if ( $self->{new} )
 	{
@@ -376,27 +384,42 @@ sub do_save
 			{
 				# if the value is not defined, special behavior is required for
 				# some special types.
-				if ( $column->{auto_increment} )
+				if ( $column->{primary_key} and ($column->{auto_increment} or $column->{id_generator}) )
 				{
-					$id_gen = $conn->create_id_generator();
-					if ( $id_gen->is_before_insert() )
+					if ( $column->{auto_increment} )
 					{
-						$values->{$col_name} = Roma::Query::SQL::Literal->new( $id_gen->get_id() );
+						# use the default connection id generator
+						$id_gen->{$col_name} = $conn->create_id_generator();
+					}
+					else
+					{
+						# use the custom id generator
+						$id_gen->{$col_name} = $column->{id_generator}->new({
+							conn        => $conn,
+							object      => $self,
+							table_name  => $table_name,
+							column_name => $col_name
+						});
+					}
+
+					if ( $id_gen->{$col_name}->is_before_insert() )
+					{
+						$values->{$col_name} = DBIx::Romani::Query::SQL::Literal->new( $id_gen->{$col_name}->get_id() );
 
 						# discard the id generator because this is already
 						# taken care of.
-						$id_gen = undef;
+						$id_gen->{$col_name} = undef;
 					}
 					else
 					{
 						# insert null, and grab the id from the id generator
 						# after the insert.
-						$values->{$col_name} = Roma::Query::SQL::Null->new();
+						$values->{$col_name} = DBIx::Romani::Query::SQL::Null->new();
 					}
 				}
 				elsif ( $column->{timestamp} )
 				{
-					$values->{$col_name} = Roma::Query::Function::Now->new();
+					$values->{$col_name} = DBIx::Romani::Query::Function::Now->new();
 				}
 
 				# TODO: else, insert a NULL!
@@ -404,7 +427,7 @@ sub do_save
 			else
 			{
 				# straigt simple value...
-				$values->{$col_name} = Roma::Query::SQL::Literal->new( $self->{info}->{$col_name} );;
+				$values->{$col_name} = DBIx::Romani::Query::SQL::Literal->new( $self->{info}->{$col_name} );;
 			}
 		}
 	}
@@ -418,17 +441,17 @@ sub do_save
 			# add the primary key
 			if ( $column->{primary_key} )
 			{
-				$values->{"key.$col_name"} = Roma::Query::SQL::Literal->new( $self->{key}->{$col_name} );
+				$values->{"key.$col_name"} = DBIx::Romani::Query::SQL::Literal->new( $self->{key}->{$col_name} );
 			}
 
 			if ( $column->{timestamp} eq 'current' )
 			{
-				$values->{$col_name} = Roma::Query::Function::Now->new();
+				$values->{$col_name} = DBIx::Romani::Query::Function::Now->new();
 			}
 			else
 			{
 				# ... and the normal values
-				$values->{$col_name} = Roma::Query::SQL::Literal->new( $self->{info}->{$col_name} );
+				$values->{$col_name} = DBIx::Romani::Query::SQL::Literal->new( $self->{info}->{$col_name} );
 			}
 		}
 	}
@@ -446,12 +469,12 @@ sub do_save
 		{
 			my $col_name = $column->{name};
 
-			if ( $column->{auto_increment} and defined $id_gen )
+			if ( defined $id_gen->{$col_name} )
 			{
 				# we saved the id generator because its a get
 				# after insert.  So, get, now...
 
-				my $id = $id_gen->get_id();
+				my $id = $id_gen->{$col_name}->get_id();
 				$self->{key}->{$col_name}  = $id;
 				$self->{info}->{$col_name} = $id;
 			}
@@ -468,9 +491,24 @@ sub do_save
 	}
 }
 
+sub _before_save
+{
+	my ($self, $type) = @_;
+
+	# Virtual.
+}
+
 sub _on_save
 {
 	my ($self, $type) = @_;
+
+	# Virtual.
+}
+
+sub _on_load
+{
+	my ($self, $type) = @_;
+
 	# Virtual.
 }
 
@@ -490,7 +528,7 @@ sub delete
 	{
 		if ( $column->{primary_key} )
 		{
-			$values{$column->{name}} = Roma::Query::SQL::Literal->new( $self->{key}->{$column->{name}} );
+			$values{$column->{name}} = DBIx::Romani::Query::SQL::Literal->new( $self->{key}->{$column->{name}} );
 		}
 	}
 

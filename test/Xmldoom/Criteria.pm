@@ -3,8 +3,8 @@
 package Local::Xmldoom::Criteria;
 use base qw(Test::Class);
 
-use Roma::Query::SQL::Generate;
-use Roma::Driver::sqlite;
+use DBIx::Romani::Query::SQL::Generate;
+use DBIx::Romani::Driver::sqlite;
 use Xmldoom::Definition;
 use Xmldoom::Criteria;
 use Xmldoom::Criteria::Search;
@@ -19,7 +19,7 @@ use strict;
 use Data::Dumper;
 
 # utility function makes SQL out of whatever
-sub generate_sql { return Roma::Driver::sqlite->new()->generate_sql( @_ ) };
+sub generate_sql { return DBIx::Romani::Driver::sqlite->new()->generate_sql( @_ ) };
 
 sub parse
 {

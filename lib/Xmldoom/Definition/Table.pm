@@ -25,6 +25,7 @@ sub COLUMN_STRUCT
 	my $name;
 	my $required;
 	my $primary_key;
+	my $id_generator;
 	my $type;
 	my $description;
 	my $size;
@@ -39,6 +40,7 @@ sub COLUMN_STRUCT
 		$size           = $args->{size};
 		$required       = $args->{required};
 		$primary_key    = $args->{primary_key};
+		$id_generator   = $args->{id_generator};
 		$description    = $args->{description};
 		$auto_increment = $args->{auto_increment};
 		$default        = $args->{default};
@@ -66,6 +68,7 @@ sub COLUMN_STRUCT
 		required       => _bool($required)       || 0,
 		primary_key    => _bool($primary_key)    || 0,
 		auto_increment => _bool($auto_increment) || 0,
+		id_generator   => $id_generator,
 		description    => $description,
 		default        => $default,
 		timestamp      => $timestamp || 0,

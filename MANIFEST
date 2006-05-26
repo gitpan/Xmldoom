@@ -6,6 +6,7 @@ example/BookStore/BooksOrdered.pm
 example/BookStore/Object.pm
 example/BookStore/Order.pm
 example/BookStore/Publisher.pm
+example/BookStore/PublisherIdGenerator.pm
 inc/Module/Install.pm
 inc/Module/Install/Base.pm
 inc/Module/Install/Can.pm
@@ -16,6 +17,7 @@ inc/Module/Install/Scripts.pm
 inc/Module/Install/Share.pm
 inc/Module/Install/Win32.pm
 inc/Module/Install/WriteAll.pm
+lib/Xmldoom.pm
 lib/Xmldoom/Criteria.pm
 lib/Xmldoom/Criteria/Attribute.pm
 lib/Xmldoom/Criteria/Comparison.pm
@@ -38,6 +40,11 @@ lib/Xmldoom/Object.pm
 lib/Xmldoom/Object/Property.pm
 lib/Xmldoom/Object/XMLGenerator.pm
 lib/Xmldoom/ORB/Apache.pm
+lib/Xmldoom/ORB/Definition.pm
+lib/Xmldoom/ORB/Definition/JSON.pm
+lib/Xmldoom/ORB/Transport.pm
+lib/Xmldoom/ORB/Transport/JSON.pm
+lib/Xmldoom/ORB/Transport/XML.pm
 lib/Xmldoom/ResultSet.pm
 LICENSE
 Makefile.PL
@@ -47,7 +54,12 @@ README
 share/javascript/xmldoom.js
 share/javascript/xmldoom/Connection.js
 share/javascript/xmldoom/Criteria.js
+share/javascript/xmldoom/Definition/Database.js
+share/javascript/xmldoom/Definition/JSONParser.js
+share/javascript/xmldoom/Definition/Object.js
+share/javascript/xmldoom/Definition/Property.js
 share/javascript/xmldoom/Object.js
+share/javascript/xmldoom/RuntimeEngine.js
 share/tpl/javascript.tpl
 test.pl
 test/Xmldoom/Criteria.pm

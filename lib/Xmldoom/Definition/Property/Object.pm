@@ -2,8 +2,8 @@
 package Xmldoom::Definition::Property::Object;
 use base qw(Xmldoom::Definition::Property);
 
-use Roma::Query::Variable;
-use Roma::Query::SQL::Column;
+use DBIx::Romani::Query::Variable;
+use DBIx::Romani::Query::SQL::Column;
 use strict;
 
 use Data::Dumper;
@@ -318,7 +318,7 @@ sub get_query_lval
 	my @ret;
 	foreach my $conn ( @{$self->{conns}} )
 	{
-		push @ret, Roma::Query::SQL::Column->new( $conn->{local_table}, $conn->{local_column} );
+		push @ret, DBIx::Romani::Query::SQL::Column->new( $conn->{local_table}, $conn->{local_column} );
 	}
 
 	return \@ret;
@@ -331,7 +331,7 @@ sub get_query_rval
 	my @ret;
 	foreach my $conn ( @{$self->{conns}} )
 	{
-		push @ret, Roma::Query::SQL::Literal->new( $value->_get_attr($conn->{foreign_column}) );
+		push @ret, DBIx::Romani::Query::SQL::Literal->new( $value->_get_attr($conn->{foreign_column}) );
 	}
 
 	return \@ret;

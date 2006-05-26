@@ -2,8 +2,8 @@
 package Xmldoom::Criteria::Comparison;
 
 use Xmldoom::Criteria;
-use Roma::Query::Where;
-use Roma::Query::Comparison;
+use DBIx::Romani::Query::Where;
+use DBIx::Romani::Query::Comparison;
 use strict;
 
 use Data::Dumper;
@@ -129,13 +129,13 @@ sub get_search_query
 	my $lval_list = $self->get_query_lval( $database );
 	my $rval_list = $self->get_query_rval( $database );
 
-	my $where = Roma::Query::Where->new( $Roma::Query::Where::AND );
+	my $where = DBIx::Romani::Query::Where->new( $DBIx::Romani::Query::Where::AND );
 
 	# turn our list of lvals into a list of operators
 	foreach my $lval ( @$lval_list )
 	{
 		my $op;
-		$op = Roma::Query::Comparison->new( $self->get_type() );
+		$op = DBIx::Romani::Query::Comparison->new( $self->get_type() );
 		$op->add( $lval );
 
 		$where->add( $op );

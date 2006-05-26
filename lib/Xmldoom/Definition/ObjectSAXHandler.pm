@@ -5,7 +5,7 @@ use Xmldoom::Definition::Property::Simple;
 use Xmldoom::Definition::Property::Object;
 use Xmldoom::Definition::Property::PlaceHolder;
 use Xmldoom::Criteria::XML;
-use Roma::Query::XML::Util qw/parse_boolean/;
+use DBIx::Romani::Query::XML::Util qw/parse_boolean/;
 use XML::GDOME;
 use strict;
 

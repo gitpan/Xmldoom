@@ -91,6 +91,7 @@ BEGIN
 			name="publisher_id"
 			required="true"
 			primaryKey="true"
+			idGenerator="example::BookStore::PublisherIdGenerator"
 			type="INTEGER"
 			description="Publisher Id"
 		/>

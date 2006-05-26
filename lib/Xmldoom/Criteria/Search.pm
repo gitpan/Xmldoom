@@ -6,10 +6,10 @@ use Xmldoom::Criteria::Comparison;
 use Xmldoom::Criteria::Attribute;
 use Xmldoom::Criteria::Property;
 use Xmldoom::Criteria::Literal;
-use Roma::Query::Select;
-use Roma::Query::Where;
-use Roma::Query::Comparison;
-use Roma::Query::SQL::Column;
+use DBIx::Romani::Query::Select;
+use DBIx::Romani::Query::Where;
+use DBIx::Romani::Query::Comparison;
+use DBIx::Romani::Query::SQL::Column;
 use strict;
 
 use Data::Dumper;
@@ -158,7 +158,7 @@ sub get_search_query
 {
 	my ($self, $database) = @_;
 
-	my $where = Roma::Query::Where->new( $self->get_type() );
+	my $where = DBIx::Romani::Query::Where->new( $self->get_type() );
 
 	foreach my $comp ( @{$self->get_comparisons()} )
 	{
@@ -183,7 +183,7 @@ sub get_conn_query
 {
 	my ($self, $database, $tables) = @_;
 
-	my $where = Roma::Query::Where->new();
+	my $where = DBIx::Romani::Query::Where->new();
 
 	#print STDERR Dumper $tables;
 
@@ -221,14 +221,14 @@ sub get_conn_query
 		# join the two tables
 		foreach my $conn ( @$conns )
 		{
-			my $join = Roma::Query::Comparison->new();
+			my $join = DBIx::Romani::Query::Comparison->new();
 
 			# NOTE: We do this in reverse than expected order because we looping
 			# essentially backwards.  The first item on the list of foriegn tables
 			# is thought to be our master table...
 
-			$join->add( Roma::Query::SQL::Column->new( $conn->{foreign_table}, $conn->{foreign_column} ) );
-			$join->add( Roma::Query::SQL::Column->new( $conn->{local_table}, $conn->{local_column} ) );
+			$join->add( DBIx::Romani::Query::SQL::Column->new( $conn->{foreign_table}, $conn->{foreign_column} ) );
+			$join->add( DBIx::Romani::Query::SQL::Column->new( $conn->{local_table}, $conn->{local_column} ) );
 			$where->add( $join );
 		}
 	}

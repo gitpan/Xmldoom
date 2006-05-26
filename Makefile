@@ -18,8 +18,8 @@
 #     NAME => q[Xmldoom]
 #     NO_META => q[1]
 #     PL_FILES => {  }
-#     PREREQ_PM => { Scalar::Util=>q[0], XML::SAX=>q[0], File::Spec=>q[0], Exception::Class::TryCatch=>q[0], File::ShareDir=>q[0], XML::DOM=>q[0], Exception::Class::DBI=>q[0], XML::GDOME=>q[0], IO::File=>q[0], Test::Class=>q[0], Data::Dumper=>q[0], ExtUtils::MakeMaker=>q[6.11], Template=>q[0], Carp=>q[0], Test::More=>q[0], Exception::Class=>q[0], XML::Writer=>q[0], Roma=>q[0], XML::SAX::ExpatXS=>q[0], XML::Writer::String=>q[0] }
-#     VERSION => q[0.0.9]
+#     PREREQ_PM => { Scalar::Util=>q[0], XML::SAX=>q[0], File::Spec=>q[0], Exception::Class::TryCatch=>q[0], File::ShareDir=>q[0], XML::DOM=>q[0], Exception::Class::DBI=>q[0], XML::GDOME=>q[0], IO::File=>q[0], Test::Class=>q[0], Data::Dumper=>q[0], ExtUtils::MakeMaker=>q[6.11], Template=>q[0], DBIx::Romani=>q[0.0.10], Carp=>q[0], Test::More=>q[0], Exception::Class=>q[0], XML::Writer=>q[0], XML::SAX::ExpatXS=>q[0], XML::Writer::String=>q[0] }
+#     VERSION => q[0.0.10]
 #     dist => { PREOP=>q[$(PERL) -I. -MModule::Install::Admin -e "dist_preop(q($(DISTVNAME)))"] }
 
 # --- MakeMaker post_initialize section:
@@ -59,11 +59,11 @@ AR_STATIC_ARGS = cr
 DIRFILESEP = /
 NAME = Xmldoom
 NAME_SYM = Xmldoom
-VERSION = 0.0.9
+VERSION = 0.0.10
 VERSION_MACRO = VERSION
-VERSION_SYM = 0_0_9
+VERSION_SYM = 0_0_10
 DEFINE_VERSION = -D$(VERSION_MACRO)=\"$(VERSION)\"
-XS_VERSION = 0.0.9
+XS_VERSION = 0.0.10
 XS_VERSION_MACRO = XS_VERSION
 XS_DEFINE_VERSION = -D$(XS_VERSION_MACRO)=\"$(XS_VERSION)\"
 INST_ARCHLIB = blib/arch
@@ -178,7 +178,8 @@ PERL_ARCHIVE       =
 PERL_ARCHIVE_AFTER = 
 
 
-TO_INST_PM = lib/Xmldoom/Criteria.pm \
+TO_INST_PM = lib/Xmldoom.pm \
+	lib/Xmldoom/Criteria.pm \
 	lib/Xmldoom/Criteria/Attribute.pm \
 	lib/Xmldoom/Criteria/Comparison.pm \
 	lib/Xmldoom/Criteria/Literal.pm \
@@ -197,6 +198,11 @@ TO_INST_PM = lib/Xmldoom/Criteria.pm \
 	lib/Xmldoom/Definition/Property/Simple.pm \
 	lib/Xmldoom/Definition/Table.pm \
 	lib/Xmldoom/ORB/Apache.pm \
+	lib/Xmldoom/ORB/Definition.pm \
+	lib/Xmldoom/ORB/Definition/JSON.pm \
+	lib/Xmldoom/ORB/Transport.pm \
+	lib/Xmldoom/ORB/Transport/JSON.pm \
+	lib/Xmldoom/ORB/Transport/XML.pm \
 	lib/Xmldoom/Object.pm \
 	lib/Xmldoom/Object/Property.pm \
 	lib/Xmldoom/Object/XMLGenerator.pm \
@@ -222,8 +228,12 @@ PM_TO_BLIB = lib/Xmldoom/Criteria.pm \
 	blib/lib/Xmldoom/Definition/Database.pm \
 	lib/Xmldoom/Criteria/Search.pm \
 	blib/lib/Xmldoom/Criteria/Search.pm \
+	lib/Xmldoom/ORB/Transport.pm \
+	blib/lib/Xmldoom/ORB/Transport.pm \
 	lib/Xmldoom/Definition/Property.pm \
 	blib/lib/Xmldoom/Definition/Property.pm \
+	lib/Xmldoom/ORB/Transport/JSON.pm \
+	blib/lib/Xmldoom/ORB/Transport/JSON.pm \
 	lib/Xmldoom/Definition/Property/Object.pm \
 	blib/lib/Xmldoom/Definition/Property/Object.pm \
 	lib/Xmldoom/ORB/Apache.pm \
@@ -238,6 +248,10 @@ PM_TO_BLIB = lib/Xmldoom/Criteria.pm \
 	blib/lib/Xmldoom/Criteria/Attribute.pm \
 	lib/Xmldoom/Definition/Object.pm \
 	blib/lib/Xmldoom/Definition/Object.pm \
+	lib/Xmldoom.pm \
+	blib/lib/Xmldoom.pm \
+	lib/Xmldoom/ORB/Definition.pm \
+	blib/lib/Xmldoom/ORB/Definition.pm \
 	lib/Xmldoom/Criteria/UnknownObject.pm \
 	blib/lib/Xmldoom/Criteria/UnknownObject.pm \
 	lib/Xmldoom/Object/XMLGenerator.pm \
@@ -247,7 +261,11 @@ PM_TO_BLIB = lib/Xmldoom/Criteria.pm \
 	lib/Xmldoom/Definition/Property/PlaceHolder.pm \
 	blib/lib/Xmldoom/Definition/Property/PlaceHolder.pm \
 	lib/Xmldoom/Definition.pm \
-	blib/lib/Xmldoom/Definition.pm
+	blib/lib/Xmldoom/Definition.pm \
+	lib/Xmldoom/ORB/Transport/XML.pm \
+	blib/lib/Xmldoom/ORB/Transport/XML.pm \
+	lib/Xmldoom/ORB/Definition/JSON.pm \
+	blib/lib/Xmldoom/ORB/Definition/JSON.pm
 
 
 # --- MakeMaker platform_constants section:
@@ -310,7 +328,7 @@ RCS_LABEL = rcs -Nv$(VERSION_SYM): -q
 DIST_CP = best
 DIST_DEFAULT = tardist
 DISTNAME = Xmldoom
-DISTVNAME = Xmldoom-0.0.9
+DISTVNAME = Xmldoom-0.0.10
 
 
 # --- MakeMaker macro section:
@@ -506,9 +524,11 @@ realclean purge ::  clean realclean_subdirs
 	$(RM_RF) $(DISTVNAME)
 	$(RM_F)  blib/lib/Xmldoom/Definition/Property/Object.pm blib/lib/Xmldoom/Definition/Property/Simple.pm $(MAKEFILE_OLD) blib/lib/Xmldoom/Criteria/Attribute.pm blib/lib/Xmldoom/Criteria/Property.pm
 	$(RM_F) blib/lib/Xmldoom/Object/XMLGenerator.pm blib/lib/Xmldoom/ORB/Apache.pm blib/lib/Xmldoom/Definition/Property.pm blib/lib/Xmldoom/Criteria/Comparison.pm blib/lib/Xmldoom/Definition/DatabaseSAXHandler.pm
-	$(RM_F) $(FIRST_MAKEFILE) blib/lib/Xmldoom/Definition/Property/PlaceHolder.pm blib/lib/Xmldoom/Definition/Table.pm blib/lib/Xmldoom/Object.pm blib/lib/Xmldoom/Criteria/Search.pm blib/lib/Xmldoom/Criteria.pm
-	$(RM_F) blib/lib/Xmldoom/Criteria/UnknownObject.pm blib/lib/Xmldoom/Definition/Object.pm blib/lib/Xmldoom/Definition/Database.pm blib/lib/Xmldoom/Criteria/XML.pm blib/lib/Xmldoom/Definition/ObjectSAXHandler.pm
-	$(RM_F) blib/lib/Xmldoom/Criteria/Literal.pm blib/lib/Xmldoom/Definition.pm blib/lib/Xmldoom/ResultSet.pm blib/lib/Xmldoom/Object/Property.pm
+	$(RM_F) $(FIRST_MAKEFILE) blib/lib/Xmldoom/Definition/Property/PlaceHolder.pm blib/lib/Xmldoom/Definition/Table.pm blib/lib/Xmldoom/ORB/Transport/XML.pm blib/lib/Xmldoom/Object.pm
+	$(RM_F) blib/lib/Xmldoom/ORB/Transport.pm blib/lib/Xmldoom/ORB/Definition.pm blib/lib/Xmldoom/Criteria/Search.pm blib/lib/Xmldoom/Criteria.pm blib/lib/Xmldoom/Criteria/UnknownObject.pm
+	$(RM_F) blib/lib/Xmldoom/Definition/Object.pm blib/lib/Xmldoom/Definition/Database.pm blib/lib/Xmldoom/Criteria/XML.pm blib/lib/Xmldoom/ORB/Definition/JSON.pm blib/lib/Xmldoom.pm
+	$(RM_F) blib/lib/Xmldoom/Criteria/Literal.pm blib/lib/Xmldoom/Definition/ObjectSAXHandler.pm blib/lib/Xmldoom/Definition.pm blib/lib/Xmldoom/ResultSet.pm blib/lib/Xmldoom/Object/Property.pm
+	$(RM_F) blib/lib/Xmldoom/ORB/Transport/JSON.pm
 
 
 # --- MakeMaker metafile section:
@@ -775,12 +795,13 @@ testdb_static :: testdb_dynamic
 # --- MakeMaker ppd section:
 # Creates a PPD (Perl Package Description) for a binary distribution.
 ppd:
-	$(NOECHO) $(ECHO) '<SOFTPKG NAME="$(DISTNAME)" VERSION="0,0,9,0">' > $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '<SOFTPKG NAME="$(DISTNAME)" VERSION="0,0,10,0">' > $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <TITLE>$(DISTNAME)</TITLE>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <ABSTRACT>Xmldoom is a framework that allows you to bind database tables to Perl objects, a technique commonly referred to as object persistence, similar in purpose to Propel and Apache Torque</ABSTRACT>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <AUTHOR>David Snopek</AUTHOR>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <IMPLEMENTATION>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Carp" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="DBIx-Romani" VERSION="0,0,10,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Data-Dumper" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Exception-Class" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Exception-Class-DBI" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
@@ -789,7 +810,6 @@ ppd:
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="File-ShareDir" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="File-Spec" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="IO-File" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
-	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Roma" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Scalar-Util" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Template" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Test-Class" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
@@ -821,7 +841,9 @@ pm_to_blib: $(TO_INST_PM)
 	  lib/Xmldoom/Definition/DatabaseSAXHandler.pm blib/lib/Xmldoom/Definition/DatabaseSAXHandler.pm \
 	  lib/Xmldoom/Definition/Database.pm blib/lib/Xmldoom/Definition/Database.pm \
 	  lib/Xmldoom/Criteria/Search.pm blib/lib/Xmldoom/Criteria/Search.pm \
+	  lib/Xmldoom/ORB/Transport.pm blib/lib/Xmldoom/ORB/Transport.pm \
 	  lib/Xmldoom/Definition/Property.pm blib/lib/Xmldoom/Definition/Property.pm \
+	  lib/Xmldoom/ORB/Transport/JSON.pm blib/lib/Xmldoom/ORB/Transport/JSON.pm \
 	  lib/Xmldoom/Definition/Property/Object.pm blib/lib/Xmldoom/Definition/Property/Object.pm \
 	  lib/Xmldoom/ORB/Apache.pm blib/lib/Xmldoom/ORB/Apache.pm \
 	  lib/Xmldoom/Criteria/Comparison.pm blib/lib/Xmldoom/Criteria/Comparison.pm \
@@ -829,11 +851,15 @@ pm_to_blib: $(TO_INST_PM)
 	  lib/Xmldoom/Object.pm blib/lib/Xmldoom/Object.pm \
 	  lib/Xmldoom/Criteria/Attribute.pm blib/lib/Xmldoom/Criteria/Attribute.pm \
 	  lib/Xmldoom/Definition/Object.pm blib/lib/Xmldoom/Definition/Object.pm \
+	  lib/Xmldoom.pm blib/lib/Xmldoom.pm \
+	  lib/Xmldoom/ORB/Definition.pm blib/lib/Xmldoom/ORB/Definition.pm \
 	  lib/Xmldoom/Criteria/UnknownObject.pm blib/lib/Xmldoom/Criteria/UnknownObject.pm \
 	  lib/Xmldoom/Object/XMLGenerator.pm blib/lib/Xmldoom/Object/XMLGenerator.pm \
 	  lib/Xmldoom/Definition/Property/Simple.pm blib/lib/Xmldoom/Definition/Property/Simple.pm \
 	  lib/Xmldoom/Definition/Property/PlaceHolder.pm blib/lib/Xmldoom/Definition/Property/PlaceHolder.pm \
-	  lib/Xmldoom/Definition.pm blib/lib/Xmldoom/Definition.pm 
+	  lib/Xmldoom/Definition.pm blib/lib/Xmldoom/Definition.pm \
+	  lib/Xmldoom/ORB/Transport/XML.pm blib/lib/Xmldoom/ORB/Transport/XML.pm \
+	  lib/Xmldoom/ORB/Definition/JSON.pm blib/lib/Xmldoom/ORB/Definition/JSON.pm 
 	$(NOECHO) $(TOUCH) $@
 
 # --- MakeMaker selfdocument section:

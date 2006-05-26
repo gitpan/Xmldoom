@@ -3,7 +3,7 @@ package Xmldoom::Criteria::XML;
 
 use Xmldoom::Criteria;
 use Xmldoom::Criteria::UnknownObject;
-use Roma::Query::XML::Util qw(get_element_text);
+use DBIx::Romani::Query::XML::Util qw(get_element_text);
 use XML::GDOME;
 use XML::DOM;
 use strict;

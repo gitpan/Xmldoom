@@ -77,6 +77,10 @@ sub start_element
 		{
 			$args->{primary_key} = $attrs->{'{}primaryKey'}->{Value};
 		}
+		if ( defined $attrs->{'{}idGenerator'} )
+		{
+			$args->{id_generator} = $attrs->{'{}idGenerator'}->{Value};
+		}
 		if ( defined $attrs->{'{}type'} )
 		{
 			$args->{type} = $attrs->{'{}type'}->{Value};

@@ -1,65 +1,49 @@
 
 dojo.provide('Xmldoom.Object');
 
+// TODO: maybe we should combine the Object.js and Runtime.js?
+dojo.require('Xmldoom.RuntimeEngine');
 dojo.require('dojo.dom');
 dojo.require('dojo.lang');
+dojo.require('dojo.lang.extras');
 
-Xmldoom.Object = function (name, args, database)
+dojo.declare('Xmldoom.Object', null,
 {
-	// use a private variable, public function closure thing to 
-	// store this value, so that the actual object is pure.
-	this._get_name     = function () { return name; };
-	this._get_database = function () { return database; };
-	this._get_conn     = function () { return database._connection; };
-
-	if ( args.length == 1 && dojo.lang.isObject(args[0]) )
+	initializer: function (definition, args)
 	{
-		// keyword arguments!
-		args = args[0];
-	
-		// copy from a data hash
-		if ( args.data )
-		{
-			// first the info
-			for ( var key in args.data )
-			{
-				this._info[key] = args.data[key];
-			}
+		this._definition = definition;
+		this._info = null;
+		this._key = { };
 
-			// then the keys
-			for ( var key in this._key )
+		if ( !args )
+			args = { };
+
+		var key_names = this._definition.get_key_names();
+
+		if ( !args.data )
+		{
+			this._info = dojo.lang.shallowCopy(this._definition.get_attributes());
+			for ( var i = 0; i < key_names; i++ )
 			{
-				this._key[key] = args.data[key];
+				this._key[key_names[i]] = null;
 			}
 		}
-
-	}
-}
-
-Xmldoom.Object.make_objects = function (cons, data)
-{
-	for( var i = 0; i < data.length; i++ )
-	{
-		data[i] = new cons({ 'data': data[i] });
-	}
-
-	return data;
-}
-
-Xmldoom.Object.Search = function (conn, name, cons, criteria, callback)
-{
-	if ( callback )
-	{
-		var onload = function (result)
+		else
 		{
-			callback(Xmldoom.Object.make_objects(cons, result));
-		};
+			this._info = args.data;
+			for ( var i = 0; i < key_names; i++ )
+			{
+				this._key[key_names[i]] = this._info[key_names[i]];
+			}
+		}
+	},
 
-		conn.search(name, criteria, onload);
-	}
-	else
-	{
-		return Xmldoom.Object.make_objects(cons, conn.search(name, criteria));
-	}
-}
+	//
+	// Accessors
+	//
+
+	_get_attr: function (name) { return this._info[name]; },
+	_set_attr: function (name, value) { this._info[name] = value; }
+});
+
 

@@ -2,7 +2,7 @@
 package Xmldoom::Criteria;
 
 use Xmldoom::Criteria::Search;
-use Roma::Query::SQL::Column;
+use DBIx::Romani::Query::SQL::Column;
 use strict;
 
 use Data::Dumper;
@@ -214,7 +214,7 @@ sub _apply_order_by_to_query
 				push @$tables, $order_by->{attr}->{table_name};
 			}
 			
-			my $value = Roma::Query::SQL::Column->new({
+			my $value = DBIx::Romani::Query::SQL::Column->new({
 				table => $order_by->{attr}->{table_name},
 				name  => $order_by->{attr}->{column}
 			});
@@ -268,7 +268,7 @@ sub _apply_group_by_to_query
 				push @$tables, $group_by->{attr}->{table_name};
 			}
 			
-			my $value = Roma::Query::SQL::Column->new({
+			my $value = DBIx::Romani::Query::SQL::Column->new({
 				table => $group_by->{attr}->{table_name},
 				name  => $group_by->{attr}->{column}
 			});
@@ -384,8 +384,8 @@ sub generate_query_for_object_count
 	{
 		if ( $column->{primary_key} )
 		{
-			my $count = Roma::Query::Function::Count->new();
-			$count->add( Roma::Query::SQL::Column->new( $table_name, $column->{name} ) );
+			my $count = DBIx::Romani::Query::Function::Count->new();
+			$count->add( DBIx::Romani::Query::SQL::Column->new( $table_name, $column->{name} ) );
 			$query->add_result( $count, 'count' );
 
 			# we're cool
@@ -412,7 +412,7 @@ sub generate_query_for_attrs
 		$attrs = [ $attrs, @_ ];
 	}
 
-	my $query = Roma::Query::Select->new();
+	my $query = DBIx::Romani::Query::Select->new();
 
 	my @tables;
 	foreach my $attr ( @$attrs )
@@ -420,7 +420,7 @@ sub generate_query_for_attrs
 		my ($table_name, $column) = split '/', $attr;
 
 		# add the column to the result list
-		$query->add_result( Roma::Query::SQL::Column->new( $table_name, $column ) );
+		$query->add_result( DBIx::Romani::Query::SQL::Column->new( $table_name, $column ) );
 
 		# add to the table list
 		push @tables, $table_name;

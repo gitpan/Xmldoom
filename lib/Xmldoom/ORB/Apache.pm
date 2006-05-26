@@ -1,32 +1,16 @@
 
 package Xmldoom::ORB::Apache;
 
+use Xmldoom::ORB::Transport;
 use Xmldoom::Definition;
 use Apache;
-use XML::Writer;
 use CGI;
 use strict;
 
 use Data::Dumper;
 
-my $DATABASE = undef;
-
-sub write_object
-{
-	my ($xml, $object) = (shift, shift);
-
-	# write our attribute base object XML jobber
-	$xml->startTag('object');
-	$xml->startTag('attributes');
-	while ( my ($name, $value) = each %$object ) 
-	{
-		$xml->startTag( 'value', name => $name );
-		$xml->characters( $value );
-		$xml->endTag( 'value' );
-	}
-	$xml->endTag('attributes');
-	$xml->endTag('object');
-}
+my $DATABASE  = undef;
+my $TRANSPORT = undef;
 
 sub handler {
 	my $r = shift;
@@ -34,11 +18,21 @@ sub handler {
 	# setup our database definitions if they haven't been already
 	if ( not defined $DATABASE )
 	{
+		# load the database/object XML files.
 		$DATABASE = Xmldoom::Definition::parse_database_uri( $r->dir_config( 'XmldoomDatabaseXML' ) );
 		Xmldoom::Definition::parse_object_uri( $DATABASE, $r->dir_config( 'XmldoomObjectsXML' ) );
 		
+		# load the connection factory
 		my $conn_factory_class = $r->dir_config( 'XmldoomConnFactory' );
 		$DATABASE->set_connection_factory( $conn_factory_class->new() );
+
+		# load the transport
+		my $format = $r->dir_config( 'XmldoomFormat' ) || "xml";
+		$TRANSPORT = Xmldoom::ORB::Transport::get_transport($format);
+		if ( not defined $TRANSPORT )
+		{
+			die "Unknown transport format passed to Xmldoom::ORB::Apache: ".$format;
+		}
 	}
 
 	my $req_location = $r->location;
@@ -89,6 +83,9 @@ sub handler {
 
 	my $cgi = CGI->new();
 
+	# send the format header
+	$r->send_http_header( $TRANSPORT->get_mime_type() );
+
 	if ( $operation eq 'load' )
 	{
 		# load the object
@@ -99,28 +96,16 @@ sub handler {
 		}
 		my $data = $definition->load( $key );
 
-		# we are sending xml!
-		$r->send_http_header('text/xml');
-
-		# write the xml 
-		my $xml = XML::Writer->new();
-		write_object($xml, $data);
-		$xml->end();
+		# write it!
+		$TRANSPORT->write_object($data);
 	}
 	elsif ( $operation eq 'search' )
 	{
 		my $criteria = Xmldoom::Criteria::XML::parse_string($buffer);
 		my $rs = $definition->search_rs( $criteria );
 
-		# write the XML results
-		my $xml = XML::Writer->new();
-		$xml->startTag('results');
-		while ( $rs->next() )
-		{
-			write_object($xml, $rs->get_row());
-		}
-		$xml->endTag('results');
-		$xml->end();
+		# write it!
+		$TRANSPORT->write_object_list($rs);
 	}
 };
 

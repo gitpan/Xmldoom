@@ -1,17 +1,25 @@
 
 dojo.provide('Xmldoom.Connection');
+dojo.provide('Xmldoom.priv');
 
+dojo.require('dojo.json');
 dojo.require('dojo.io.*');
 
-//
-// TODO: Add support for JSON as the transport.
-//
-
-Xmldoom.Connection = function (base_url)
+dojo.declare('Xmldoom.priv.JSONTransport', null,
 {
-	this.baseUrl = base_url;
+	parseObject: function (result)
+	{
+		return dojo.json.evalJson(result);
+	},
+	parseObjectList: function (result)
+	{
+		return dojo.json.evalJson(result);
+	}
+});
 
-	this._findAttrs = function (parent)
+dojo.declare('Xmldoom.priv.XMLTransport', null,
+{
+	_findAttrs: function (parent)
 	{
 		var node = parent.firstChild;
 
@@ -27,12 +35,23 @@ Xmldoom.Connection = function (base_url)
 		}
 
 		return node;
-	}
+	},
 
-	this._parseObject = function (parent)
+	parseObject: function (result)
+	{
+		var doc = dojo.dom.createDocumentFromText(result);
+		if ( doc )
+		{
+			return this._parseObject( doc.firstChild );
+		}
+		
+		return null;
+	},
+
+	_parseObject: function (result)
 	{
 		// jump down to the attributes section
-		parent = this._findAttrs(parent);
+		parent = this._findAttrs(result);
 		if ( !parent )
 			return null;
 
@@ -43,7 +62,7 @@ Xmldoom.Connection = function (base_url)
 		while ( node )
 		{
 			if ( node.nodeType == dojo.dom.ELEMENT_NODE &&
-			     node.tagName == 'value' )
+				 node.tagName == 'value' )
 			{
 				// Get the text value of the node, if it has a value, otherwise
 				// we leave it at its default (by not setting it).
@@ -60,17 +79,28 @@ Xmldoom.Connection = function (base_url)
 		}
 
 		return data;
-	}
+	},
 
-	this._parseObjectList = function (parent)
+	parseObjectList: function (result)
 	{
-		var node = parent.firstChild;
+		var doc = dojo.dom.createDocumentFromText(result);
+		if ( doc )
+		{
+			return this._parseObjectList( doc.firstChild );
+		}
+		
+		return null;
+	},
+
+	_parseObjectList: function (result)
+	{
+		var node = result.firstChild;
 		var list = [ ];
 
 		while ( node )
 		{
 			if ( node.nodeType == dojo.dom.ELEMENT_NODE &&
-			     node.tagName == 'object' )
+				 node.tagName == 'object' )
 			{
 				var obj = this._parseObject(node);
 				if ( obj )
@@ -84,8 +114,32 @@ Xmldoom.Connection = function (base_url)
 
 		return list;
 	}
+});
 
-	this.load = function (xmldoomType, key)
+dojo.declare('Xmldoom.Connection', null,
+{
+	initializer: function (base_url, type)
+	{
+		this.baseUrl = base_url;
+
+		if ( !type )
+			type = "xml";
+
+		if ( type == "xml" )
+		{
+			this.transport = new Xmldoom.priv.XMLTransport();
+		}
+		else if ( type == "json" )
+		{
+			this.transport = new Xmldoom.priv.JSONTransport();
+		}
+		else
+		{
+			alert("Unsupported Xmldoom connection type '"+type+"'");
+		}
+	},
+
+	load: function (xmldoomType, key)
 	{
 		var result = null;
 
@@ -94,17 +148,17 @@ Xmldoom.Connection = function (base_url)
 			method:      'get',
 			content:     key,
 			load:        function (type, data, evt) { result = data; },
-			mimetype:    "text/xml",
+			mimetype:    "text/plain",
 			sync:        true
 		});
 
 		if ( !result )
 			return null;
 
-		return this._parseObject(result.firstChild);
-	}
+		return this.transport.parseObject(result);
+	},
 
-	this.search = function (xmldoomType, criteria, callback)
+	search: function (xmldoomType, criteria, callback)
 	{
 		var self   = this;
 		var result = null;
@@ -116,7 +170,12 @@ Xmldoom.Connection = function (base_url)
 		{
 			onload = function (type, data, evt) 
 			{
-				callback(self._parseObjectList(data.firstChild));
+				if ( data )
+				{
+					data = self.transport.parseObjectList(data);
+				}
+
+				callback(data);
 			}
 			sync = false;
 		}
@@ -142,10 +201,7 @@ Xmldoom.Connection = function (base_url)
 		if ( !result )
 			return null;
 
-		result = dojo.dom.createDocumentFromText(result);
-
-		return this._parseObjectList(result.firstChild);
+		return this.transport.parseObjectList(result);
 	}
-}
-
+});
 

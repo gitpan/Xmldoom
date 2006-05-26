@@ -2,15 +2,15 @@
 package Xmldoom::Definition::Object;
 
 use Exception::Class::TryCatch;
-use Roma::Query::Select;
-use Roma::Query::Insert;
-use Roma::Query::Update;
-use Roma::Query::Delete;
-use Roma::Query::Where;
-use Roma::Query::Comparison;
-use Roma::Query::Variable;
-use Roma::Query::SQL::Column;
-use Roma::Query::SQL::Literal;
+use DBIx::Romani::Query::Select;
+use DBIx::Romani::Query::Insert;
+use DBIx::Romani::Query::Update;
+use DBIx::Romani::Query::Delete;
+use DBIx::Romani::Query::Where;
+use DBIx::Romani::Query::Comparison;
+use DBIx::Romani::Query::Variable;
+use DBIx::Romani::Query::SQL::Column;
+use DBIx::Romani::Query::SQL::Literal;
 use strict;
 
 use Data::Dumper;
@@ -103,13 +103,18 @@ sub has_property
 {
 	my ($self, $prop_name) = @_;
 
-	eval
+	try eval
 	{
 		$self->get_property( $prop_name );
-		return 1;
 	};
 
-	return 0;
+	my $error = catch;
+	if ( $error )
+	{
+		return 0;
+	}
+
+	return 1;
 }
 
 sub set_class
@@ -172,13 +177,13 @@ sub get_select_query
 
 	if ( not defined $self->{select_query} )
 	{
-		my $query = Roma::Query::Select->new();
+		my $query = DBIx::Romani::Query::Select->new();
 		$query->add_from( $self->{table_name} );
 
 		# add all the columns 
 		foreach my $column ( @{$self->{table}->get_columns()} )
 		{
-			$query->add_result( Roma::Query::SQL::Column->new( $self->{table_name}, $column->{name}) );
+			$query->add_result( DBIx::Romani::Query::SQL::Column->new( $self->{table_name}, $column->{name}) );
 		}
 
 		$self->{select_query} = $query;
@@ -194,15 +199,15 @@ sub get_select_by_key_query
 	if ( not defined $self->{select_by_key_query} )
 	{
 		my $query = $self->get_select_query()->clone();
-		my $where = Roma::Query::Where->new( $Roma::Query::Where::AND );
+		my $where = DBIx::Romani::Query::Where->new( $DBIx::Romani::Query::Where::AND );
 
 		foreach my $column ( @{$self->{table}->get_columns()} )
 		{
 			if ( $column->{primary_key} )
 			{
-				my $op = Roma::Query::Comparison->new( $Roma::Query::Comparison::EQUAL );
-				$op->add( Roma::Query::SQL::Column->new( $self->{table_name}, $column->{name} ) );
-				$op->add( Roma::Query::Variable->new( "$self->{table_name}.$column->{name}" ) );
+				my $op = DBIx::Romani::Query::Comparison->new( $DBIx::Romani::Query::Comparison::EQUAL );
+				$op->add( DBIx::Romani::Query::SQL::Column->new( $self->{table_name}, $column->{name} ) );
+				$op->add( DBIx::Romani::Query::Variable->new( "$self->{table_name}.$column->{name}" ) );
 				$where->add( $op );
 			}
 		}
@@ -220,11 +225,11 @@ sub get_insert_query
 
 	if ( not defined $self->{insert_query} )
 	{
-		my $query = Roma::Query::Insert->new( $self->{table_name} );
+		my $query = DBIx::Romani::Query::Insert->new( $self->{table_name} );
 
 		foreach my $column ( @{$self->{table}->get_columns()} )
 		{
-			$query->set_value( $column->{name}, Roma::Query::Variable->new($column->{name}) );
+			$query->set_value( $column->{name}, DBIx::Romani::Query::Variable->new($column->{name}) );
 		}
 
 		$self->{insert_query} = $query;
@@ -239,22 +244,22 @@ sub get_update_query
 
 	if ( not defined $self->{update_query} )
 	{
-		my $query = Roma::Query::Update->new( $self->{table_name} );
-		my $where = Roma::Query::Where->new( $Roma::Query::Where::AND );
+		my $query = DBIx::Romani::Query::Update->new( $self->{table_name} );
+		my $where = DBIx::Romani::Query::Where->new( $DBIx::Romani::Query::Where::AND );
 
 		foreach my $column ( @{$self->{table}->get_columns()} )
 		{
 			# add the primary key to the where section
 			if ( $column->{primary_key} )
 			{
-				my $op = Roma::Query::Comparison->new( $Roma::Query::Comparison::EQUAL );
-				$op->add( Roma::Query::SQL::Column->new( undef, $column->{name} ) );
-				$op->add( Roma::Query::Variable->new( "key.$column->{name}" ) );
+				my $op = DBIx::Romani::Query::Comparison->new( $DBIx::Romani::Query::Comparison::EQUAL );
+				$op->add( DBIx::Romani::Query::SQL::Column->new( undef, $column->{name} ) );
+				$op->add( DBIx::Romani::Query::Variable->new( "key.$column->{name}" ) );
 				$where->add($op);
 			}
 
 			# set all the column values
-			$query->set_value( $column->{name}, Roma::Query::Variable->new( $column->{name} ) );
+			$query->set_value( $column->{name}, DBIx::Romani::Query::Variable->new( $column->{name} ) );
 		}
 		$query->set_where( $where );
 
@@ -270,16 +275,16 @@ sub get_delete_query
 
 	if ( not defined $self->{delete_query} )
 	{
-		my $query = Roma::Query::Delete->new( $self->{table_name} );
-		my $where = Roma::Query::Where->new( $Roma::Query::Where::AND );
+		my $query = DBIx::Romani::Query::Delete->new( $self->{table_name} );
+		my $where = DBIx::Romani::Query::Where->new( $DBIx::Romani::Query::Where::AND );
 
 		foreach my $column ( @{$self->{table}->get_columns()} )
 		{
 			if ( $column->{primary_key} )
 			{
-				my $op = Roma::Query::Comparison->new( $Roma::Query::Comparison::EQUAL );
-				$op->add( Roma::Query::SQL::Column->new( undef, $column->{name} ) );
-				$op->add( Roma::Query::Variable->new( $column->{name} ) );
+				my $op = DBIx::Romani::Query::Comparison->new( $DBIx::Romani::Query::Comparison::EQUAL );
+				$op->add( DBIx::Romani::Query::SQL::Column->new( undef, $column->{name} ) );
+				$op->add( DBIx::Romani::Query::Variable->new( $column->{name} ) );
 				$where->add( $op );
 			}
 		}
@@ -322,7 +327,7 @@ sub create_db_connection
 	if ( not defined $factory )
 	{
 		# Programmer error
-		die "This database doesn't have a Roma::Connection::Factory registered";
+		die "This database doesn't have a DBIx::Romani::Connection::Factory registered";
 	}
 
 	return $factory->create();
@@ -330,7 +335,7 @@ sub create_db_connection
 
 #
 # The following allow you to perform all of the basic database operations that
-# CS3::Object performs, except with an actual object, just the raw queries.
+# CS3::Object performs, except without an actual object, just the raw queries.
 #
 
 sub load
@@ -373,7 +378,7 @@ sub load
 				die "Missing required key value \"$col_name\"";
 			}
 
-			$values{$val_name} = Roma::Query::SQL::Literal->new( $val );
+			$values{$val_name} = DBIx::Romani::Query::SQL::Literal->new( $val );
 		}
 	}
 

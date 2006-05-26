@@ -1,7 +1,7 @@
 
 package Xmldoom::Criteria::Attribute;
 
-use Roma::Query::SQL::Column;
+use DBIx::Romani::Query::SQL::Column;
 use strict;
 
 sub new
@@ -40,7 +40,7 @@ sub get_query_lval
 
 	# TODO: we could validate if the table/column pair actually exists
 
-	return [ Roma::Query::SQL::Column->new( $self->get_table_name(), $self->get_column_name() ) ];
+	return [ DBIx::Romani::Query::SQL::Column->new( $self->get_table_name(), $self->get_column_name() ) ];
 }
 
 # really, there are only lvalues for attribute

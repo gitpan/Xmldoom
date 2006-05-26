@@ -7,8 +7,8 @@ use Xmldoom::Definition;
 use Xmldoom::Object;
 use Xmldoom::Object::XMLGenerator;
 use Xmldoom::Criteria;
-use Roma::Connection::Factory;
-use Roma::Driver::sqlite;
+use DBIx::Romani::Connection::Factory;
+use DBIx::Romani::Driver::sqlite;
 use Exception::Class::TryCatch;
 use Test::More;
 use Date::Calc qw( Today Add_Delta_Days );
@@ -123,8 +123,8 @@ sub setup : Test(setup)
 	);
 
 	# connect the database to this SQLite connection
-	my $driver  = Roma::Driver::sqlite->new();
-	my $factory = Roma::Connection::Factory->new({ dbh => $dbh, driver => $driver });
+	my $driver  = DBIx::Romani::Driver::sqlite->new();
+	my $factory = DBIx::Romani::Connection::Factory->new({ dbh => $dbh, driver => $driver });
 
 	$self->{database}->set_connection_factory( $factory );
 }
@@ -589,6 +589,21 @@ sub objectManyToManyComplex1 : Test(2)
 
 	is( $books[0]->get_title(), "My Science Fiction Autobiography" );
 	is( $books[1]->get_title(), "The Hitchhikers Guide to the Galaxy" );
+}
+
+sub customIdGenerator : Test(1)
+{
+	my $self = shift;
+
+	my $publisher = example::BookStore::Publisher->new();
+
+	$publisher->set({
+		name => "Mine Publisher"
+	});
+
+	$publisher->save();
+	print $publisher->_get_attr('publisher_id');
+	ok(1);
 }
 
 1;

@@ -18,6 +18,7 @@ no_index:
     - t
 requires:
   Carp: 0
+  DBIx::Romani: 0.0.10
   Data::Dumper: 0
   Exception::Class: 0
   Exception::Class::DBI: 0
@@ -25,7 +26,6 @@ requires:
   File::ShareDir: 0
   File::Spec: 0
   IO::File: 0
-  Roma: 0
   Scalar::Util: 0
   Template: 0
   XML::DOM: 0
@@ -34,4 +34,4 @@ requires:
   XML::SAX::ExpatXS: 0
   XML::Writer: 0
   XML::Writer::String: 0
-version: 0.0.9
+version: 0.0.10

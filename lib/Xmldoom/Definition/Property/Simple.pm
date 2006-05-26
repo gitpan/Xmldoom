@@ -89,8 +89,10 @@ sub new
 	return $self;
 }
 
-sub get_type { return "inherent"; }
-sub get_attr { return shift->{attr_name}; }
+sub get_type       { return "inherent"; }
+sub get_attribute  { return shift->{attr_name}; }
+sub get_trans_to   { return shift->{trans_to}; }
+sub get_trans_from { return shift->{trans_from}; }
 
 sub get_autoload_get_list
 {
@@ -274,14 +276,14 @@ sub get_query_lval
 	my $table_name  = $self->{parent}->get_table_name();
 	my $column_name = $self->{attr_name};
 
-	return [ Roma::Query::SQL::Column->new( $table_name, $column_name ) ];
+	return [ DBIx::Romani::Query::SQL::Column->new( $table_name, $column_name ) ];
 }
 
 sub get_query_rval
 {
 	my ($self, $value) = @_;
 
-	return [ Roma::Query::SQL::Literal->new( $self->trans_to($value) ) ];
+	return [ DBIx::Romani::Query::SQL::Literal->new( $self->trans_to($value) ) ];
 }
 
 sub autoload

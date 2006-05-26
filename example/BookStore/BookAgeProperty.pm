@@ -2,9 +2,9 @@
 package example::BookStore::BookAgeProperty;
 use base qw(Xmldoom::Definition::Property::Simple);
 
-use Roma::Query::SQL::TTT::Function;
-use Roma::Query::SQL::TTT::Operator;
-use Roma::Query::Function::Now;
+use DBIx::Romani::Query::SQL::TTT::Function;
+use DBIx::Romani::Query::SQL::TTT::Operator;
+use DBIx::Romani::Query::Function::Now;
 use Date::Calc qw( Today Date_to_Days );
 use POSIX::strptime;
 use strict;
@@ -50,13 +50,13 @@ sub get_query_lval
 {
 	my $self = shift;
 
-	my $today_days = Roma::Query::SQL::TTT::Function->new('TO_DAYS');
-	$today_days->add( Roma::Query::Function::Now->new() );
+	my $today_days = DBIx::Romani::Query::SQL::TTT::Function->new('TO_DAYS');
+	$today_days->add( DBIx::Romani::Query::Function::Now->new() );
 
-	my $created_days = Roma::Query::SQL::TTT::Function->new('TO_DAYS');
-	$created_days->add( Roma::Query::SQL::Column->new( $self->{parent}->get_table_name(), 'created' ) );
+	my $created_days = DBIx::Romani::Query::SQL::TTT::Function->new('TO_DAYS');
+	$created_days->add( DBIx::Romani::Query::SQL::Column->new( $self->{parent}->get_table_name(), 'created' ) );
 	
-	my $age_op = Roma::Query::SQL::TTT::Operator->new('-');
+	my $age_op = DBIx::Romani::Query::SQL::TTT::Operator->new('-');
 	$age_op->add( $today_days );
 	$age_op->add( $created_days );
 

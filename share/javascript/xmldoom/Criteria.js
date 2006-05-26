@@ -7,58 +7,65 @@ dojo.require('dojo.lang');
 Used to produce the XML for doing an Xmldoom::Criteria search.
 */
 
-Xmldoom.Criteria = function ( xml ) {
-
-	this.order_by_node = null;
-
-	var cons_node;
-
-	if ( typeof(xml) != 'undefined' )
+dojo.declare('Xmldoom.Criteria', null,
+{
+	initializer: function ( arg )
 	{
-		// read from an XML string
-		this.doc = dojo.dom.createDocumentFromText(xml);
-		this.order_by_node = this.doc.getElementsByTagName('order-by').item(0);
-		cons_node = this.doc.getElementsByTagName('constraints').item(0);
-	}
-	else
-	{
-		// create a new document
-		this.doc = dojo.dom.createDocument();
-		this.doc.appendChild(this.doc.createElement("search"));
-	}
-	if ( cons_node == null || typeof(cons_node) == 'undefined' )
-	{
-		cons_node = this.doc.createElement("constraints"); 
-		this.doc.firstChild.appendChild(cons_node);
-	}
+		this.order_by_node = null;
+		this.parent = null;
 
-	// create the search object
-	this.search = new Xmldoom.Criteria.Search( this.doc, cons_node );
+		var cons_node;
 
-	this.getDoc = function() { return this.doc; };
-	this.getNode = function() {
-			return this.getDoc().firstChild; };
-
-	this.setType = function(type) { 
-		if (!type || type == '')
-			this.getNode().removeAttribute('type');
+		if ( dojo.lang.isString( arg ) )
+		{
+			// read from an XML string
+			this.doc = dojo.dom.createDocumentFromText(xml);
+			this.order_by_node = this.doc.getElementsByTagName('order-by').item(0);
+			cons_node = this.doc.getElementsByTagName('constraints').item(0);
+		}
 		else
-			this.getNode().setAttribute('type',type);
-		return this; 
-	};
+		{
+			// create a new document
+			this.doc = dojo.dom.createDocument();
+			this.doc.appendChild(this.doc.createElement("search"));
 
-	this.getType = function() { return this.getNode().getAttribute('type'); }
+			if ( arg )
+				this.parent = arg;
+		}
+		if ( !cons_node )
+		{
+			cons_node = this.doc.createElement("constraints"); 
+			this.doc.firstChild.appendChild(cons_node);
+		}
+		// create the search object
+		this.search = new Xmldoom.Criteria.Search( this.doc, cons_node );
+	},
 
-	this.xml = function() { 
+	// 
+	// XML boilerplate accessors
+	//
+
+	getDoc:  function () { return this.doc },
+	getNode: function () { return this.getDoc().firstChild },
+	getType: function () { return this.getNode().getAttribute('type'); },
+	setType: function (type)
+	{
+		this.getNode().setAttribute('type', type);
+	},
+	xml: function ()
+	{
 		return dojo.dom.innerXML(this.getNode());
-	};
+	},
 
-	// member functions
-	this.get_constraints = function ()         { return this.search.get(); };
-	this.add_prop        = function (a1,a2,a3) { this.search.add_prop(a1,a2,a3); };
-	this.add             = function (a1,a2,a3) { this.add_prop(a1,a2,a3); };
+	//
+	// Actual member functions
+	//
 
-	this.add_order_by = function (name, dir)
+	get_constraints: function () { return this.search.get(); },
+	add_prop: function (a1, a2, a3) { this.search.add_prop(a1, a2, a3); },
+	add:      function (a1, a2, a3) { this.add_prop(a1, a2, a3); },
+
+	add_order_by: function (name, dir)
 	{
 		if ( this.order_by_node == null )
 		{
@@ -74,9 +81,9 @@ Xmldoom.Criteria = function ( xml ) {
 		}
 
 		this.order_by_node.appendChild(prop_node);
-	}
+	},
 
-	this.get_order_by = function ()
+	get_order_by: function ()
 	{
 		var ret = Array();
 		var node, i, name, dir;
@@ -104,7 +111,7 @@ Xmldoom.Criteria = function ( xml ) {
 
 		return ret;
 	}
-} 
+});
 
 Xmldoom.Criteria.ComparisonTypes = {
 	AND:           'and',
@@ -123,22 +130,24 @@ Xmldoom.Criteria.ComparisonTypes = {
 	IS_NULL:       'is-null',
 	IS_NOT_NULL:   'is-not-null'
 };
+// for convenience.
+dojo.lang.mixin(Xmldoom.Criteria, Xmldoom.Criteria.ComparisonTypes);
 
-Xmldoom.Criteria.Search = function(doc, node)
+dojo.declare('Xmldoom.Criteria.Search', null,
 {
-	this.doc  = doc;
-	this.node = node;
+	initializer: function (doc, node)
+	{
+		this.doc  = doc;
+		this.node = node;
+	},
 
-	// Two synonymous functions
-	this.getNode = function() { return this.node; };
+	getNode: function () { return this.node; },
 
-	// constraint manipulating functions
-
-	this.add_prop = function (name, value, type)
+	add_prop: function (name, value, type)
 	{
 		if ( typeof(type) == 'undefined' )
 		{
-			type = Xmldoom.Criteria.ComparisonTypes.EQUAL;
+			type = Xmldoom.Criteria.EQUAL;
 		}
 
 		// create the property node
@@ -149,12 +158,12 @@ Xmldoom.Criteria.Search = function(doc, node)
 
 		// create the comparison node
 		var comparison_node = this.doc.createElement( type );
-		if ( type == Xmldoom.Criteria.ComparisonTypes.IN || 
-		     type == Xmldoom.Criteria.ComparisonTypes.NOT_IN )
+		if ( type == Xmldoom.Criteria.IN || 
+		     type == Xmldoom.Criteria.NOT_IN )
 		{
 			alert('Criteria type "'+type+'" not implemented.');
 		}
-		else if ( type == Xmldoom.Criteria.ComparisonTypes.BETWEEN )
+		else if ( type == Xmldoom.Criteria.BETWEEN )
 		{
 			comparison_node.setAttribute('min', value[0]);
 			comparison_node.setAttribute('max', value[1]);
@@ -177,9 +186,9 @@ Xmldoom.Criteria.Search = function(doc, node)
 			}
 		}
 		property_node.appendChild( comparison_node );
-	}
+	},
 
-	this.get = function ()
+	get: function ()
 	{
 		var ret = Array();
 		var node, i, name, type, value;
@@ -191,7 +200,7 @@ Xmldoom.Criteria.Search = function(doc, node)
 			if ( node.tagName == 'property' )
 			{
 				type = node.firstChild.tagName;
-				if ( type == Xmldoom.Criteria.ComparisonTypes.BETWEEN )
+				if ( type == Xmldoom.Criteria.BETWEEN )
 				{
 					value = [
 						node.firstChild.getAttribute('min'),
@@ -200,8 +209,8 @@ Xmldoom.Criteria.Search = function(doc, node)
 				}
 				else
 				{
-					if ( (type == Xmldoom.Criteria.ComparisonTypes.EQUAL || 
-					      type == Xmldoom.Criteria.ComparisonTypes.NOT_EQUAL) &&
+					if ( (type == Xmldoom.Criteria.EQUAL || 
+					      type == Xmldoom.Criteria.NOT_EQUAL) &&
 						 node.firstChild.firstChild.nodeType == dojo.dom.ELEMENT_NODE )
 					{
 						var obj_node  = node.firstChild.firstChild;
@@ -230,21 +239,5 @@ Xmldoom.Criteria.Search = function(doc, node)
 
 		return ret;
 	}
-} 
-
-/* 
-Removes all of the current constraints.
-*/
-
-/*
-function SearchObject_clearConstraints()
-{
-	var children = this.getNode().childNodes;
-	for(i = 0; i < children.length; i++)
-	{
-		this.getNode().removeChild(children.item(i));
-	}
-}
-*/
-
+});
 

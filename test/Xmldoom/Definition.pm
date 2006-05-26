@@ -5,16 +5,16 @@ use base qw(Test::Class);
 
 use Xmldoom::Definition::Database;
 use Xmldoom::Definition;
-use Roma::Query::SQL::Generate;
-use Roma::Query::SQL::Literal;
-use Roma::Driver::sqlite;
+use DBIx::Romani::Query::SQL::Generate;
+use DBIx::Romani::Query::SQL::Literal;
+use DBIx::Romani::Driver::sqlite;
 use Test::More;
 use strict;
 
 use Data::Dumper;
 
 # utility function makes SQL out of whatever
-sub generate_sql { return Roma::Driver::sqlite->new()->generate_sql( @_ ) };
+sub generate_sql { return DBIx::Romani::Driver::sqlite->new()->generate_sql( @_ ) };
 
 sub startup : Test(startup)
 {
@@ -169,7 +169,7 @@ sub objectSelectByKeyQuery : Test(1)
 
 	# create the compiler and see what select SQL it generates
 	my $query = $self->{book_object}->get_select_by_key_query();
-	my $sql = generate_sql( $query, { 'book.book_id' => Roma::Query::SQL::Literal->new('TEST') } );
+	my $sql = generate_sql( $query, { 'book.book_id' => DBIx::Romani::Query::SQL::Literal->new('TEST') } );
 
 	is( $sql, "SELECT book.book_id, book.title, book.isbn, book.publisher_id, book.author_id FROM book WHERE book.book_id = 'TEST'" );
 }
@@ -180,11 +180,11 @@ sub objectInsertQuery : Test(1)
 
 	my $query = $self->{book_object}->get_insert_query();
 	my $info = {
-		book_id      => Roma::Query::SQL::Literal->new( 123 ),
-		title        => Roma::Query::SQL::Literal->new( 'Hitchhikers Guide to the Galaxy' ),
-		isbn         => Roma::Query::SQL::Literal->new( '0345391802' ),
-		publisher_id => Roma::Query::SQL::Literal->new( 66 ),
-		author_id    => Roma::Query::SQL::Literal->new( 666 )
+		book_id      => DBIx::Romani::Query::SQL::Literal->new( 123 ),
+		title        => DBIx::Romani::Query::SQL::Literal->new( 'Hitchhikers Guide to the Galaxy' ),
+		isbn         => DBIx::Romani::Query::SQL::Literal->new( '0345391802' ),
+		publisher_id => DBIx::Romani::Query::SQL::Literal->new( 66 ),
+		author_id    => DBIx::Romani::Query::SQL::Literal->new( 666 )
 	};
 	my $sql = generate_sql( $query, $info );
 
@@ -197,12 +197,12 @@ sub objectUpdateQuery : Test(1)
 
 	my $query = $self->{book_object}->get_update_query();
 	my $info = {
-		'key.book_id' => Roma::Query::SQL::Literal->new( 12 ),
-		book_id       => Roma::Query::SQL::Literal->new( 123 ),
-		title         => Roma::Query::SQL::Literal->new( 'Hitchhikers Guide to the Galaxy' ),
-		isbn          => Roma::Query::SQL::Literal->new( '0345391802' ),
-		publisher_id  => Roma::Query::SQL::Literal->new( 66 ),
-		author_id     => Roma::Query::SQL::Literal->new( 666 )
+		'key.book_id' => DBIx::Romani::Query::SQL::Literal->new( 12 ),
+		book_id       => DBIx::Romani::Query::SQL::Literal->new( 123 ),
+		title         => DBIx::Romani::Query::SQL::Literal->new( 'Hitchhikers Guide to the Galaxy' ),
+		isbn          => DBIx::Romani::Query::SQL::Literal->new( '0345391802' ),
+		publisher_id  => DBIx::Romani::Query::SQL::Literal->new( 66 ),
+		author_id     => DBIx::Romani::Query::SQL::Literal->new( 666 )
 	};
 	my $sql = generate_sql( $query, $info );
 
@@ -214,7 +214,7 @@ sub objectDeleteQuery : Test(1)
 	my $self = shift;
 
 	my $query = $self->{book_object}->get_delete_query();
-	my $sql = generate_sql( $query, { book_id => Roma::Query::SQL::Literal->new(123) } );
+	my $sql = generate_sql( $query, { book_id => DBIx::Romani::Query::SQL::Literal->new(123) } );
 
 	is( $sql, "DELETE FROM book WHERE book_id = '123'" );
 }
