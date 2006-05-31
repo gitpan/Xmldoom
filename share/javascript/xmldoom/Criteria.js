@@ -12,6 +12,7 @@ dojo.declare('Xmldoom.Criteria', null,
 	initializer: function ( arg )
 	{
 		this.order_by_node = null;
+		this.parent_node = null;
 		this.parent = null;
 
 		var cons_node;
@@ -54,6 +55,40 @@ dojo.declare('Xmldoom.Criteria', null,
 	},
 	xml: function ()
 	{
+		// DRS: Ok, this is a big hack.  We create the parent node if
+		// one is necessary, and remove it if not.  We do this because the
+		// parent object could have changed between the time that the
+		// criteria object was created and when it was used, and we want
+		// those changes reflected.  Is this a real worry, or am I being 
+		// crazy?
+
+		if ( this.parent_node )
+		{
+			this.getNode().removeChild(this.parent_node);
+			this.parent_node = null;
+		}
+		if ( this.parent )
+		{
+			var key = this.parent._get_key();
+			var key_node;
+
+			// create parent node
+			this.parent_node = this.getDoc().createElement('parent');
+			this.parent_node.setAttribute('object_name', this.parent._get_object_name());
+
+			// create a key node
+			key_node = this.getDoc().createElement('key');
+			for ( var key_name in key )
+			{
+				key_node.setAttribute(key_name, key[key_name]);
+			}
+
+			// add to the document
+			this.parent_node.appendChild(key_node);
+			this.getNode().appendChild(this.parent_node);
+		}
+		
+		// the real work...
 		return dojo.dom.innerXML(this.getNode());
 	},
 
@@ -62,8 +97,10 @@ dojo.declare('Xmldoom.Criteria', null,
 	//
 
 	get_constraints: function () { return this.search.get(); },
-	add_prop: function (a1, a2, a3) { this.search.add_prop(a1, a2, a3); },
-	add:      function (a1, a2, a3) { this.add_prop(a1, a2, a3); },
+	get_parent:      function () { return this.parent; },
+
+	add_prop:   function (a1, a2, a3) { this.search.add_prop(a1, a2, a3); },
+	add:        function (a1, a2, a3) { this.add_prop(a1, a2, a3); },
 
 	add_order_by: function (name, dir)
 	{

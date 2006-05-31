@@ -11,6 +11,7 @@ use DBIx::Romani::Query::Comparison;
 use DBIx::Romani::Query::Variable;
 use DBIx::Romani::Query::SQL::Column;
 use DBIx::Romani::Query::SQL::Literal;
+use Module::Runtime qw(use_module);
 use strict;
 
 use Data::Dumper;
@@ -169,6 +170,28 @@ sub set_custom_property
 	}
 
 	die "No such property '$name'";
+}
+
+sub class_new
+{
+	my $self = shift;
+
+	my $class = $self->get_class();
+
+	use_module($class);
+
+	return $class->new( @_ );
+}
+
+sub class_load
+{
+	my $self = shift;
+
+	my $class = $self->get_class();
+
+	use_module($class);
+
+	return $class->load( @_ );
 }
 
 sub get_select_query
@@ -496,6 +519,63 @@ sub search_attrs_rs
 }
 
 sub search_attrs
+{
+	my $self  = shift;
+	my $rs    = $self->search_attrs_rs( @_ );
+	
+	my @ret;
+
+	# unravel our result set
+	while ( $rs->next() )
+	{
+		push @ret, $rs->get_row();
+	}
+
+	return wantarray ? @ret : \@ret;
+}
+
+sub search_distinct_attrs_rs
+{
+	my $self     = shift;
+	my $criteria = shift;
+
+	my @attrs;
+
+	my $table_name = $self->get_table_name();
+
+	# build object specific attrs
+	foreach my $attr ( @_ )
+	{
+		push @attrs, "$table_name/$attr";
+	}
+
+	my $query = $criteria->generate_query_for_attrs( $self->get_database(), \@attrs );
+
+	# we are searching distinctly...
+	$query->set_distinct(1);
+
+	my $conn;
+	my $rs;
+
+	# connect and query
+	try eval
+	{
+		$conn = $self->create_db_connection();
+		#printf STDERR "SearchDistinct(): %s\n", $conn->generate_sql($query);
+		$rs = $conn->prepare( $query )->execute();
+	};
+
+	catch my $err;
+	if ( $err )
+	{
+		$conn->disconnect() if defined $conn;
+		$err->rethrow();
+	}
+
+	return $rs;
+}
+
+sub search_distinct_attrs
 {
 	my $self  = shift;
 	my $rs    = $self->search_attrs_rs( @_ );

@@ -4,6 +4,9 @@ package Xmldoom::Definition::DatabaseSAXHandler;
 use Xmldoom::Definition::Database;
 use strict;
 
+our $DATABASE_NS      = "http://gna.org/projects/xmldoom/database";
+our $DATABASE_PERL_NS = "http://gna.org/projects/xmldoom/database-perl";
+
 sub new
 {
 	my $class = shift;
@@ -77,9 +80,9 @@ sub start_element
 		{
 			$args->{primary_key} = $attrs->{'{}primaryKey'}->{Value};
 		}
-		if ( defined $attrs->{'{}idGenerator'} )
+		if ( defined $attrs->{"{$DATABASE_PERL_NS}idGenerator"} )
 		{
-			$args->{id_generator} = $attrs->{'{}idGenerator'}->{Value};
+			$args->{id_generator} = $attrs->{"{$DATABASE_PERL_NS}idGenerator"}->{Value};
 		}
 		if ( defined $attrs->{'{}type'} )
 		{

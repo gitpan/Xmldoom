@@ -29,7 +29,10 @@ sub create_criteria_from_node
 {
 	my $parent_node = shift;
 
-	my $criteria = Xmldoom::Criteria->new();
+	# this will grab the Criteria parent if such a section exists
+	my $parent = Xmldoom::Criteria::XML::_parse_parent_section($parent_node);
+
+	my $criteria = Xmldoom::Criteria->new($parent);
 
 	my $has_constraints = 0;
 	my $has_order_by    = 0;
@@ -88,6 +91,15 @@ sub create_criteria_from_node
 	}
 
 	return $criteria;
+}
+
+sub _parse_parent_section
+{
+	my $top_node = shift;
+
+	# TODO: implement!
+	
+	return undef;
 }
 
 sub _parse_constraints_section

@@ -46,7 +46,7 @@ sub load
 	my $definition = $OBJECTS{$class};
 	my $data       = $definition->load( @_ );
 
-	my $result = $class->new({ data => $data });
+	my $result = $class->new(undef, { data => $data });
 	
 	# call user handler
 	$result->_on_load();
@@ -126,6 +126,36 @@ sub SearchAttrs
 	return wantarray ? @ret : \@ret;
 }
 
+sub SearchDistinctAttrsRS
+{
+	my $class    = shift;
+	my $criteria = shift;
+
+	# if no criteria, then we want to get all items
+	if ( not defined $criteria )
+	{
+		$criteria = Xmldoom::Criteria->new();
+	}
+
+	return $OBJECTS{$class}->search_distinct_attrs_rs( $criteria, @_ );
+}
+
+sub SearchDistinctAttrs
+{
+	my $class = shift;
+	my $rs    = $class->SearchDistinctAttrsRS( @_ );
+	
+	my @ret;
+
+	# unravel our result set
+	while ( $rs->next() )
+	{
+		push @ret, $rs->get_row();
+	}
+
+	return wantarray ? @ret : \@ret;
+}
+
 sub Count
 {
 	my $class    = shift;
@@ -143,20 +173,21 @@ sub Count
 sub new
 {
 	my $class = shift;
-	my $args = shift;
+	my $public_args  = shift;
+	my $private_args = shift;
 
 	my $parent;
 	my $data;
+	my $sets;
 
-	if ( ref($args) eq "HASH" )
+	if ( ref($private_args) eq "HASH" )
 	{
-		$parent   = $args->{parent};
-		$data     = $args->{data};
+		$parent = $private_args->{parent};
+		$data   = $private_args->{data};
 	}
-	else
+	if ( ref($public_args) eq "HASH" )
 	{
-		$parent   = $args;
-		$data     = shift;
+		$sets = $public_args;
 	}
 
 	my $self = {
@@ -219,6 +250,12 @@ sub new
 	foreach my $prop ( @{$self->{DEFINITION}->get_properties()} )
 	{
 		push @{$self->{props}}, Xmldoom::Object::Property->new( $prop, $self );
+	}
+
+	# set the initial values
+	if ( defined $sets )
+	{
+		$self->set($sets);
 	}
 
 	return $self;

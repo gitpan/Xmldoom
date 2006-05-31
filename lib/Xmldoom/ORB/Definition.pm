@@ -45,7 +45,7 @@ sub generate_object_hash
 		# add to the keys if necessary
 		if ( $column->{primary_key} )
 		{
-			push @{$data->{keys_list}}, { name => $column->{name}, default => undef };
+			push @{$data->{key_names}}, $column->{name};
 		}
 	}
 

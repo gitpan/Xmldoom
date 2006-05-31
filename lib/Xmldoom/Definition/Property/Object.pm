@@ -4,6 +4,7 @@ use base qw(Xmldoom::Definition::Property);
 
 use DBIx::Romani::Query::Variable;
 use DBIx::Romani::Query::SQL::Column;
+use Module::Runtime qw(use_module);
 use strict;
 
 use Data::Dumper;
@@ -118,6 +119,8 @@ sub get_object_class
 	{
 		die "The object '$self->{object_name}' isn't attached to a Perl class.  Maybe you forgot to 'use' its module?";
 	}
+
+	use_module($class);
 
 	return $class;
 }
@@ -287,7 +290,7 @@ sub set
 		foreach my $props ( @$args )
 		{
 			my $new_obj;
-			$new_obj = $class->new({ parent => $object });
+			$new_obj = $class->new(undef, { parent => $object });
 			$new_obj->set( $props );
 
 			# set properties from us

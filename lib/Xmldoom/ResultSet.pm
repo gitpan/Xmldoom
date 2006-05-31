@@ -62,7 +62,7 @@ sub get_object
 	my $self = shift;
 
 	# create our object
-	return $self->{class}->new({ 
+	return $self->{class}->new(undef, { 
 		data   => $self->{result}->get_row(),
 		parent => $self->{parent}
 	});

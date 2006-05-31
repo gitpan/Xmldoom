@@ -7,9 +7,13 @@ use Xmldoom::Definition::Property::PlaceHolder;
 use Xmldoom::Criteria::XML;
 use DBIx::Romani::Query::XML::Util qw/parse_boolean/;
 use XML::GDOME;
+use Module::Runtime qw(use_module);
 use strict;
 
 use Data::Dumper;
+
+our $OBJECT_NS      = "http://gna.org/projects/xmldoom/object";
+our $OBJECT_PERL_NS = "http://gna.org/projects/xmldoom/object-perl";
 
 # In the interest of speed and memory and Perl's poor garbage collection, we actually
 # run this parser twice over the same file to get all its data.
@@ -111,7 +115,13 @@ sub start_element
 			my $object_name = $attrs->{'{}name'}->{Value};
 			my $table_name  = $attrs->{'{}table'}->{Value};
 
-			$self->{database}->create_object( $object_name, $table_name );
+			my $object = $self->{database}->create_object( $object_name, $table_name );
+
+			# set the Perl class
+			if ( $attrs->{"{$OBJECT_PERL_NS}class"} )
+			{
+				Xmldoom::Object::BindToObject( $attrs->{"{$OBJECT_PERL_NS}class"}->{Value}, $object );
+			}
 		}
 		elsif ( $self->{phase} == 2 )
 		{
@@ -182,6 +192,14 @@ sub start_element
 			if ( defined $attrs->{'{}inter_table'} )
 			{
 				$args->{inter_table} = $attrs->{'{}inter_table'}->{Value};
+			}
+		
+		}
+		elsif ( $name eq 'custom' )
+		{
+			if ( defined $attrs->{"{$OBJECT_PERL_NS}class"} )
+			{
+				$args->{perl_class} = $attrs->{"{$OBJECT_PERL_NS}class"}->{Value};
 			}
 		}
 
@@ -443,8 +461,21 @@ sub end_element
 		}
 		elsif ( $name eq 'custom' )
 		{
+			my $perl_class;
+
+			# choose either the given class or use the PlaceHolder
+			if ( defined $self->{prop_args}->{perl_class} )
+			{
+				$perl_class = delete $self->{prop_args}->{perl_class};
+				use_module($perl_class);
+			}
+			else
+			{
+				$perl_class = 'Xmldoom::Definition::Property::PlaceHolder';
+			}
+
 			# create a place holder property
-			$prop = Xmldoom::Definition::Property::PlaceHolder->new($self->{prop_args});
+			$prop = $perl_class->new($self->{prop_args});
 		}
 
 		# add 'er!

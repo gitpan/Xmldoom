@@ -23,7 +23,10 @@ BEGIN
 {
 	my $database_xml = << "EOF";
 <?xml version="1.0" standalone="no"?>
-<database name="bookstore" defaultIdMethod="native">
+<database
+xmlns="http://gna.org/projects/xmldoom/database"
+xmlns:perl="http://gna.org/projects/xmldoom/database-perl"
+name="bookstore" defaultIdMethod="native">
 	<table name="book" description="Book Table">
 		<column
 			name="book_id"
@@ -91,9 +94,9 @@ BEGIN
 			name="publisher_id"
 			required="true"
 			primaryKey="true"
-			idGenerator="example::BookStore::PublisherIdGenerator"
 			type="INTEGER"
 			description="Publisher Id"
+			perl:idGenerator="example::BookStore::PublisherIdGenerator"
 		/>
 		<column
 			name="name"
@@ -184,8 +187,12 @@ BEGIN
 EOF
 	
 	my $object_xml = << "EOF";
-<objects>
-<object name="Book" table="book">
+<?xml version="1.0"?>
+<objects
+xmlns="http://gna.org/projects/xmldoom/object"
+xmlns:perl="http://gna.org/projects/xmldoom/object-perl">
+
+<object name="Book" table="book" perl:class="example::BookStore::Book">
 	<property name="title">
 		<simple/>
 	</property>
@@ -205,7 +212,7 @@ EOF
 	
 	<!-- a custom property type! -->
 	<property name="age">
-		<custom/>
+		<custom perl:class="example::BookStore::BookAgeProperty"/>
 	</property>
 
 	<!-- a simple property with slightly complex options -->
@@ -226,7 +233,7 @@ EOF
 	</property>
 </object>
 
-<object name="Author" table="author">
+<object name="Author" table="author" perl:class="example::BookStore::Author">
 	<property name="first_name">
 		<simple/>
 	</property>
@@ -240,7 +247,7 @@ EOF
 	</property>
 </object>
 
-<object name="Publisher" table="publisher">
+<object name="Publisher" table="publisher" perl:class="example::BookStore::Publisher">
 	<property name="name">
 		<simple/>
 	</property>
@@ -251,7 +258,7 @@ EOF
 	</property>
 </object>
 
-<object name="Order" table="orders">
+<object name="Order" table="orders" perl:class="example::BookStore::Order">
 	<property name="date_opened">
 		<simple/>
 	</property>
@@ -268,7 +275,7 @@ EOF
 	</property>
 </object>
 
-<object name="BooksOrdered" table="books_ordered">
+<object name="BooksOrdered" table="books_ordered" perl:class="example::BookStore::BooksOrdered">
 	<property name="book">
 		<object name="Book"/>
 	</property>

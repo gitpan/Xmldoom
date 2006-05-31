@@ -92,6 +92,12 @@ sub setup : Test(setup)
 	$self->insert( "author", 
 		[ 1, 'Russell A', 'Snopek' ], 
 		[ 2, 'Douglas N', 'Adams' ],
+
+		# Next two I made up to have the same first name
+		[ 3, 'John A',    'Jenkins' ],
+		[ 4, 'John A',    'Oppenheimer' ],
+
+		[ 5, 'Kurt',      'Vonnegut' ]
 	);
 	$self->insert( "publisher",
 		[ 1, 'Lulu Press' ],
@@ -214,6 +220,20 @@ sub objectCriteriaAttrs1 : Test(1)
 	is( $list[0]->{title}, "My Science Fiction Autobiography" );
 }
 
+sub objectCriteriaDistinctAttrs1 : Test(4)
+{
+	my $self = shift;
+
+	my $criteria = Xmldoom::Criteria->new();
+
+	my @list = example::BookStore::Author->SearchDistinctAttrs( $criteria, "first_name" );
+
+	is( $list[0]->{first_name}, "Russell A" );
+	is( $list[1]->{first_name}, "Douglas N" );
+	is( $list[2]->{first_name}, "John A" );
+	is( $list[3]->{first_name}, "Kurt" );
+}
+
 sub databaseCriteria1 : Test(1)
 {
 	my $self = shift;
@@ -313,10 +333,7 @@ sub objectPropsObjectCreate2 : Test(5)
 
 	my $publisher = example::BookStore::Publisher->load({ publisher_id => 4 });
 	my $author = example::BookStore::Author->load({ author_id => 2 });
-	my $book = example::BookStore::Book->new();
-
-	# alternate setting method
-	$book->set({
+	my $book = example::BookStore::Book->new({
 		title     => 'Long Dark Tea Time of the Soul',
 		isbn      => '0671742515',
 		author    => $author,
@@ -595,9 +612,7 @@ sub customIdGenerator : Test(1)
 {
 	my $self = shift;
 
-	my $publisher = example::BookStore::Publisher->new();
-
-	$publisher->set({
+	my $publisher = example::BookStore::Publisher->new({
 		name => "Mine Publisher"
 	});
 

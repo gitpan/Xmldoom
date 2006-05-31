@@ -23,7 +23,7 @@ dojo.declare('Xmldoom.Object', null,
 		if ( !args.data )
 		{
 			this._info = dojo.lang.shallowCopy(this._definition.get_attributes());
-			for ( var i = 0; i < key_names; i++ )
+			for ( var i = 0; i < key_names.length; i++ )
 			{
 				this._key[key_names[i]] = null;
 			}
@@ -31,7 +31,7 @@ dojo.declare('Xmldoom.Object', null,
 		else
 		{
 			this._info = args.data;
-			for ( var i = 0; i < key_names; i++ )
+			for ( var i = 0; i < key_names.length; i++ )
 			{
 				this._key[key_names[i]] = this._info[key_names[i]];
 			}
@@ -41,6 +41,11 @@ dojo.declare('Xmldoom.Object', null,
 	//
 	// Accessors
 	//
+
+	_get_definition:  function () { return this._definition; },
+	_get_database:    function () { return this._definition.get_database(); },
+	_get_object_name: function () { return this._definition.get_name(); },
+	_get_key:         function () { return this._key; },
 
 	_get_attr: function (name) { return this._info[name]; },
 	_set_attr: function (name, value) { this._info[name] = value; }
