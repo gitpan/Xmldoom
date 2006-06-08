@@ -73,7 +73,7 @@ Xmldoom.RuntimeEngine.defineClass = function (definition)
 
 		var get_method = (function (p)
 		{
-			return function () { return p.get(this); }
+			return function (args) { return p.get(this, args); }
 		})(property);
 
 		var set_method = (function (p)

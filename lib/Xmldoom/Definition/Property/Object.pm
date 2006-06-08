@@ -5,6 +5,7 @@ use base qw(Xmldoom::Definition::Property);
 use DBIx::Romani::Query::Variable;
 use DBIx::Romani::Query::SQL::Column;
 use Module::Runtime qw(use_module);
+use Scalar::Util qw(weaken isweak);
 use strict;
 
 use Data::Dumper;
@@ -102,7 +103,7 @@ sub get_autoload_set_list
 	return [ shift->{set_name} ];
 }
 
-sub get_object
+sub get_object_definition
 {
 	my $self = shift;
 
@@ -113,7 +114,7 @@ sub get_object_class
 {
 	my $self = shift;
 
-	my $class = $self->get_object()->get_class();
+	my $class = $self->get_object_definition()->get_class();
 
 	if ( not defined $class )
 	{
@@ -176,72 +177,115 @@ sub get_data_type
 
 sub get
 {
-	my ($self, $object) = (shift, shift);
+	my ($self, $object, $args, $object_data) = (shift, shift, shift, shift);
 
 	my $database = $self->get_parent()->get_database();
 	my $class    = $self->get_object_class();
 
-	my $criteria = Xmldoom::Criteria->new( $object );
-
-	# pass any arguments as property equations on the criteria.
-	if ( $self->{relationship}->[1] eq 'many' )
+	if ( $self->get_type() eq 'inherent' )
 	{
-		my $args = shift;
-		if ( ref($args) eq 'HASH' )
+		if ( defined $object_data->{unsaved_object} and $object_data->{unsaved_object}->{new} )
 		{
-			while( my ($key, $val) = each %$args )
+			return $object_data->{unsaved_object};
+		}
+		else
+		{
+			# clear the unsaved object, if it actually exists
+			if ( defined $object_data->{unsaved_object} )
 			{
-				my $prop = sprintf "%s/%s", $self->{object_name}, $key;
-				$criteria->add( $prop, $val );
+				$object_data->{unsaved_object} = undef;
+			}
+			
+			# simply load the object
+			my $object_key = { };
+			foreach my $conn ( @{$self->{conns}} )
+			{
+				$object_key->{$conn->{foreign_column}} = $object->_get_attr($conn->{local_column});
+			}
+			my $data = $self->get_object_definition()->load( $object_key );
+			return $class->new(undef, { data => $data, parent => $object });
+		}
+	}
+	elsif ( $self->get_type() eq 'external' )
+	{
+		my @ret;
+
+		if ( defined $object_data )
+		{
+			# check the list for undef objects (because they are weak references)
+			# and objects that have been saved.
+			foreach my $unsaved ( @{$object_data->{unsaved_list}} )
+			{
+				if ( defined $unsaved and $unsaved->{new} )
+				{
+					push @ret, $unsaved;
+				}
+			}
+			if ( scalar @{$object_data->{unsaved_list}} != scalar @ret )
+			{
+				# copy into unsaved if there were any changes
+				$object_data->{unsaved_list} = [ @ret ];
 			}
 		}
-	}
 
-	# connect via the intertable
-	if ( defined $self->{inter_table} )
-	{
-		# TODO: this should work, but doesn't!  There are problems with our
-		# implementation of Criteria in this regard, but I don't have the mind
-		# to debug it right now.
-
-		my $parent_table_name = $self->get_parent()->get_table_name();
-		my $object_table_name = $database->get_object( $self->{object_name} )->get_table_name();
-
-		# join the parent table to the inter-table
-		my $parent_conns = $database->find_connections( $parent_table_name, $self->{inter_table} );
-		foreach my $conn ( @$parent_conns )
+		if ( not $object->{new} )
 		{
-			$criteria->join_attr(
-				sprintf("%s/%s", $conn->{local_table},   $conn->{local_column}),
-				sprintf("%s/%s", $conn->{foreign_table}, $conn->{foreign_column})
-			);
+			my $criteria = Xmldoom::Criteria->new( $object );
 
-			#print Dumper $conn;
+			# pass any arguments as property equations on the criteria.
+			if ( $self->{relationship}->[1] eq 'many' )
+			{
+				if ( ref($args) eq 'HASH' )
+				{
+					while( my ($key, $val) = each %$args )
+					{
+						my $prop = sprintf "%s/%s", $self->{object_name}, $key;
+						$criteria->add( $prop, $val );
+					}
+				}
+			}
+
+			# connect via the intertable
+			if ( defined $self->{inter_table} )
+			{
+				# TODO: this should work, but doesn't!  There are problems with our
+				# implementation of Criteria in this regard, but I don't have the mind
+				# to debug it right now.
+
+				my $parent_table_name = $self->get_parent()->get_table_name();
+				my $object_table_name = $database->get_object( $self->{object_name} )->get_table_name();
+
+				# join the parent table to the inter-table
+				my $parent_conns = $database->find_connections( $parent_table_name, $self->{inter_table} );
+				foreach my $conn ( @$parent_conns )
+				{
+					$criteria->join_attr(
+						sprintf("%s/%s", $conn->{local_table},   $conn->{local_column}),
+						sprintf("%s/%s", $conn->{foreign_table}, $conn->{foreign_column})
+					);
+
+					#print Dumper $conn;
+				}
+
+				# join the inter-table to the object table
+				my $object_conns = $database->find_connections( $self->{inter_table}, $object_table_name );
+				foreach my $conn ( @$object_conns )
+				{
+					$criteria->join_attr(
+						sprintf("%s/%s", $conn->{local_table},   $conn->{local_column}),
+						sprintf("%s/%s", $conn->{foreign_table}, $conn->{foreign_column})
+					);
+
+					#print Dumper $conn;
+				}
+			}
+			
+			# execute
+			@ret = $class->Search( $criteria );
 		}
 
-		# join the inter-table to the object table
-		my $object_conns = $database->find_connections( $self->{inter_table}, $object_table_name );
-		foreach my $conn ( @$object_conns )
-		{
-			$criteria->join_attr(
-				sprintf("%s/%s", $conn->{local_table},   $conn->{local_column}),
-				sprintf("%s/%s", $conn->{foreign_table}, $conn->{foreign_column})
-			);
-
-			#print Dumper $conn;
-		}
+		return wantarray ? @ret : \@ret;
 	}
-		
-	# execute
-	my @ret = $class->Search( $criteria );
-
-	# return
-	if ( $self->{relationship}->[1] eq 'one' )
-	{
-		return $ret[0];
-	}
-
-	return wantarray ? @ret : \@ret;
 }
 
 sub get_value_description
@@ -255,22 +299,29 @@ sub get_value_description
 
 sub set
 {
-	my ($self, $object, $args) = @_;
+	my ($self, $object, $args, $object_data) = @_;
 
 	if ( $self->get_type() eq 'inherent' )
 	{
 		# we are simply setting a value
 		my $value = $args;
 
-		# copy its connected attributes into our object
+		# link the attributes of the value to ours
 		foreach my $conn ( @{$self->{conns}} )
 		{
-			$object->_set_attr( $conn->{local_column}, $value->_get_attr($conn->{foreign_column}) );
+			$object->_link_attr( $conn->{local_column}, $value, $conn->{foreign_column} );
 		}
 
 		# this object will be saved in the same transaction as us so that no
 		# changes are lost.
 		$object->_add_dependent( $value );
+
+		# if this value is unsaved, we need to hang onto it
+		if ( $value->{new} )
+		{
+			$object_data->{unsaved_object} = $value;
+			weaken $object_data->{unsaved_object};
+		}
 	}
 	elsif ( $self->get_type() eq 'external' )
 	{
@@ -289,20 +340,20 @@ sub set
 		# create new objects
 		foreach my $props ( @$args )
 		{
-			my $new_obj;
-			$new_obj = $class->new(undef, { parent => $object });
-			$new_obj->set( $props );
+			push @ret, $class->new($props, { parent => $object });
+		}
 
-			# set properties from us
-			foreach my $conn ( @{$self->{conns}} )
-			{
-				$new_obj->_set_attr( $conn->{foreign_column}, $object->_get_attr($conn->{local_column}) );
-			}
-			
-			# Don't save!  Maybe not all the required information is filled in!!
-			#$new_obj->save();
+		# create the unsaved objects list
+		if ( not defined $object_data->{unsaved_list} )
+		{
+			$object_data->{unsaved_list} = [ ];
+		}
 
-			push @ret, $new_obj;
+		# add weak references to these new objects in the unsaved objects list
+		foreach my $child ( @ret )
+		{
+			push @{$object_data->{unsaved_list}}, $child;
+			weaken $object_data->{unsaved_list}->[-1];
 		}
 
 		if ( scalar @$args == 1 )

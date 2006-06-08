@@ -10,6 +10,7 @@ use Xmldoom::Criteria;
 use DBIx::Romani::Connection::Factory;
 use DBIx::Romani::Driver::sqlite;
 use Exception::Class::TryCatch;
+use Callback;
 use Test::More;
 use Date::Calc qw( Today Add_Delta_Days );
 use DBI;
@@ -430,6 +431,99 @@ sub objectChildParent2 : Test(2)
 	is( $books[0]->get_title(), 'Blah' );
 }
 
+sub objectChildParent3 : Test(1)
+{
+	my $self = shift;
+
+	my $publisher = example::BookStore::Publisher->new({ name => "My Publisher" });
+	my $author    = example::BookStore::Author->load({ author_id => 3 });
+	my $book      = $publisher->add_book({ author => $author, title => "My Book", isbn => "XYZ" });
+
+	$publisher->save();
+
+	# make sure that the automatically generated id is passed into the child
+	is ( $book->_get_attr('publisher_id'), 5 );
+}
+
+sub objectChildParent4 : Test(2)
+{
+	my $self = shift;
+
+	my $publisher = example::BookStore::Publisher->new({ name => "My Publisher", publisher_id => 27 });
+	my $author    = example::BookStore::Author->load({ author_id => 3 });
+	my $book      = $publisher->add_book({ author => $author, title => "My Book", isbn => "XYZ" });
+
+	# make sure that the parent property is being pulled directly from the parent object.
+	is( $publisher->get_publisher_id(),   27 );
+	is( $book->_get_attr('publisher_id'), $publisher->get_publisher_id() );
+
+	$publisher->save();
+}
+
+sub objectChildParent5 : Test(7)
+{
+	my $self = shift;
+
+	my $publisher = example::BookStore::Publisher->new({ name => "My Publisher", publisher_id => 27 });
+	my $author    = example::BookStore::Author->load({ author_id => 3 });
+	my $book      = $publisher->add_book({ author => $author, title => "My Book", isbn => "XYZ" });
+
+	my @books;
+
+	# pull the list of the unsaved objects
+	@books = $publisher->get_books();
+	is( scalar @books,          1 );
+	is( $books[0]->get_title(), "My Book" );
+	is( $books[0]->{new},       1 );
+
+	# now save ...
+	$publisher->save();
+
+	# and pull the now saved objects
+	@books = $publisher->get_books();
+	is( scalar @books,          1 );
+	is( $books[0]->get_title(), "My Book" );
+	is( $books[0]->{new},       0 );
+	is( $books[1],              undef );
+}
+
+sub objectChildParent6 : Test(7)
+{
+	my $self = shift;
+
+	my $author = example::BookStore::Author->new({
+		first_name => 'John B',
+		last_name  => 'Smith'
+	});
+
+	my $book = example::BookStore::Book->new({
+		author    => $author,
+		publisher => example::BookStore::Publisher->load({ publisher_id => 1 }),
+		title     => 'My Book',
+		isbn      => 'XYZ'
+	});
+
+	# load the unsaved object
+	is( $book->get_author(),           $author );
+	is( $book->_get_attr('author_id'), undef );
+
+	$book->save();
+
+	# confirm that we have a id now for author_id
+	is( $book->_get_attr('author_id'), 6 );
+
+	my $author2 = $book->get_author();
+
+	# now that the object is saved, we should get a new instance when we
+	# query for it.
+	isnt( $author2, $author );
+
+	# but it should still be the same data in the database
+	is( $author2->get_author_id(),  $author->get_author_id() );
+	is( $author2->get_first_name(), $author->get_first_name() );
+	is( $author2->get_last_name(),  $author->get_last_name() );
+}
+
 sub objectOrderBy1 : Test(1)
 {
 	my $self = shift;
@@ -468,6 +562,7 @@ sub objectXml1 : Test(1)
 	my $exp = << "EOF";
 <books>
 <book book_id="1">
+<book_id>1</book_id>
 <title>My Science Fiction Autobiography</title>
 <isbn>141162730X</isbn>
 <publisher publisher_id="1" />
@@ -497,12 +592,15 @@ sub objectXml2 : Test(1)
 	my $exp = << "EOF";
 <books>
 <book book_id="1">
+<book_id>1</book_id>
 <title>My Science Fiction Autobiography</title>
 <isbn>141162730X</isbn>
 <publisher publisher_id="1">
+<publisher_id>1</publisher_id>
 <name>Lulu Press</name>
 </publisher>
 <author author_id="1">
+<author_id>1</author_id>
 <first_name>Russell A</first_name>
 <last_name>Snopek</last_name>
 </author>
@@ -608,7 +706,7 @@ sub objectManyToManyComplex1 : Test(2)
 	is( $books[1]->get_title(), "The Hitchhikers Guide to the Galaxy" );
 }
 
-sub customIdGenerator : Test(1)
+sub objectCustomIdGenerator : Test(1)
 {
 	my $self = shift;
 
@@ -617,8 +715,52 @@ sub customIdGenerator : Test(1)
 	});
 
 	$publisher->save();
-	print $publisher->_get_attr('publisher_id');
+
 	ok(1);
+}
+
+sub objectGetAllProps : Test(5)
+{
+	my $self = shift;
+
+	my $book  = example::BookStore::Book->load({ book_id => 1 });
+	my $props = $book->get();
+
+	is( $props->{title},                    "My Science Fiction Autobiography" );
+	is( $props->{isbn},                     "141162730X" );
+	is( $props->{author}->get_first_name(), "Russell A" );
+	is( $props->{author}->get_last_name(),  "Snopek" );
+	is( $props->{publisher}->get_name(),    "Lulu Press" );
+}
+
+sub objectCallback0
+{
+	my $self = shift;
+	my $arg  = shift;
+
+	$self->{callback_test} = $arg;
+}
+
+sub objectCallback1 : Test(2)
+{
+	my $self = shift;
+
+	my $book = example::BookStore::Book->new();
+
+	# register some random callback
+	my $cb = new Callback ($self, "objectCallback0", 'value2');
+	$book->_register_callback('onwowza', $cb);
+
+	# set some variable which this callback will change
+	$self->{callback_test} = 'value1';
+	$book->_execute_callback('onwowza');
+	is( $self->{callback_test}, 'value2' );
+
+	# now we unregister the callback and expect the value to remain the same.
+	$book->_unregister_callback('onwowza', $cb);
+	$self->{callback_test} = 'value3';
+	$book->_execute_callback('onwowza');
+	is( $self->{callback_test}, 'value3' );
 }
 
 1;

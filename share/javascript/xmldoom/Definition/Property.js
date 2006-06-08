@@ -72,7 +72,7 @@ dojo.declare('Xmldoom.Definition.Property.Object', Xmldoom.Definition.Property.B
 		this.type        = args.object_type;
 		this.connections = args.connections;
 	},
-	get: function (object)
+	get: function (object, args)
 	{
 		if ( this.type == 'inherent' )
 		{
@@ -88,6 +88,19 @@ dojo.declare('Xmldoom.Definition.Property.Object', Xmldoom.Definition.Property.B
 		}
 		else
 		{
+			// we use criteria to implement this
+			var criteria = new Xmldoom.Criteria(object);
+
+			// use the extra arguments to suppliment the criteria
+			for( var arg_name in args )
+			{
+				criteria.add( this.object_name+'/'+arg_name, args[arg_name] );
+			}
+
+			// TODO: do something about inter-tables.
+
+			// return the object, yo!
+			return this.get_parent().get_database().get_object(this.object_name).get_class().Search(criteria);
 		}
 	},
 	set: function (object, value)

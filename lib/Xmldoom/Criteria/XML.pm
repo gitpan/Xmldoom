@@ -12,25 +12,29 @@ use Data::Dumper;
 
 sub parse_string
 {
-	my $xml = shift;
+	my $xml      = shift;
+	my $database = shift;
+
 	my $doc = XML::GDOME->createDocFromString( $xml );
 
-	return Xmldoom::Criteria::XML::parse_dom( $doc );
+	return Xmldoom::Criteria::XML::parse_dom( $doc, $database );
 }
 
 sub parse_dom
 {
-	my $doc = shift;
+	my $doc      = shift;
+	my $database = shift;
 
-	return Xmldoom::Criteria::XML::create_criteria_from_node( $doc->getDocumentElement() );
+	return Xmldoom::Criteria::XML::create_criteria_from_node( $doc->getDocumentElement(), $database );
 }
 
 sub create_criteria_from_node
 {
 	my $parent_node = shift;
+	my $database    = shift;
 
 	# this will grab the Criteria parent if such a section exists
-	my $parent = Xmldoom::Criteria::XML::_parse_parent_section($parent_node);
+	my $parent = Xmldoom::Criteria::XML::_parse_parent_section($parent_node, $database);
 
 	my $criteria = Xmldoom::Criteria->new($parent);
 
@@ -81,6 +85,10 @@ sub create_criteria_from_node
 					die "Cannot have multiple group-by sections";
 				}
 			}
+			elsif ( $name eq 'parent' )
+			{
+				# Already processed this section in advance...
+			}
 			else
 			{
 				die "Unknown criteria section: $name";
@@ -96,10 +104,66 @@ sub create_criteria_from_node
 sub _parse_parent_section
 {
 	my $top_node = shift;
+	my $database = shift;
 
-	# TODO: implement!
+	# try to find the parent section
+	my $parent_node = $top_node->getFirstChild();
+	while ( defined $parent_node )
+	{
+		if ( $parent_node->getNodeType() == XML::DOM::ELEMENT_NODE &&
+		     $parent_node->getTagName() eq 'parent' )
+		{
+			last;
+		}
+
+		$parent_node = $parent_node->getNextSibling();
+	}
+
+	# check it out
+	if ( not defined $parent_node )
+	{
+		return undef;
+	}
+	elsif ( not defined $database )
+	{
+		die "Cannot parse a criteria with a <parent/> section if you don't pass the database object into the parser";
+	}
+
+	my $object_name = $parent_node->getAttribute('object_name');
+	my $definition  = $database->get_object($object_name);
+
+	my $load_args = { };
+
+	# find the node with the keys in it
+	my $key_node = $parent_node->getFirstChild();
+	while ( defined $key_node )
+	{
+		if ( $key_node->getNodeType() == XML::DOM::ELEMENT_NODE &&
+		     $key_node->getTagName() eq 'key' )
+		{
+			last;
+		}
+
+		$key_node = $key_node->getNextSibling();
+	}
+
+	if ( not defined $key_node )
+	{
+		die "No key given for <parent/> object of <criteria/>";
+	}
+
+	# get all the attributes into our load hash
+	my $attrs = $key_node->getAttributes();
+	for( my $i = 0; $i < $attrs->getLength(); $i++ )
+	{
+		my $attr = $attrs->item($i);
+		$load_args->{$attr->getName()} = $attr->getValue();
+	}
+
+	# actually load the object
+	my $object = $definition->class_load( $load_args );
 	
-	return undef;
+	return $object;
 }
 
 sub _parse_constraints_section

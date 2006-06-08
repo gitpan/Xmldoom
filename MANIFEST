@@ -37,6 +37,8 @@ lib/Xmldoom/Definition/Property/PlaceHolder.pm
 lib/Xmldoom/Definition/Property/Simple.pm
 lib/Xmldoom/Definition/Table.pm
 lib/Xmldoom/Object.pm
+lib/Xmldoom/Object/Attribute.pm
+lib/Xmldoom/Object/LinkAttribute.pm
 lib/Xmldoom/Object/Property.pm
 lib/Xmldoom/Object/XMLGenerator.pm
 lib/Xmldoom/ORB/Apache.pm
@@ -60,7 +62,6 @@ share/javascript/xmldoom/Definition/Object.js
 share/javascript/xmldoom/Definition/Property.js
 share/javascript/xmldoom/Object.js
 share/javascript/xmldoom/RuntimeEngine.js
-share/tpl/javascript.tpl
 test.pl
 test/Xmldoom/Criteria.pm
 test/Xmldoom/Definition.pm

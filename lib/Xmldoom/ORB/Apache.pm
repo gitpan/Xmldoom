@@ -80,6 +80,7 @@ sub handler {
 		# Will this work without 'Content-Length' ?
 		$r->read($buffer, $r->header_in('Content-Length'));
 	}
+	#print STDERR "POST: $buffer\n";
 
 	my $cgi = CGI->new();
 
@@ -101,7 +102,7 @@ sub handler {
 	}
 	elsif ( $operation eq 'search' )
 	{
-		my $criteria = Xmldoom::Criteria::XML::parse_string($buffer);
+		my $criteria = Xmldoom::Criteria::XML::parse_string($buffer, $DATABASE);
 		my $rs = $definition->search_rs( $criteria );
 
 		# write it!

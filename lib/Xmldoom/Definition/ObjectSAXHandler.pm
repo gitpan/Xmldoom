@@ -1,5 +1,6 @@
 
 package Xmldoom::Definition::ObjectSAXHandler;
+use base qw(XML::SAX::Base);
 
 use Xmldoom::Definition::Property::Simple;
 use Xmldoom::Definition::Property::Object;

@@ -1,5 +1,6 @@
 
 package Xmldoom::Definition::DatabaseSAXHandler;
+use base qw(XML::SAX::Base);
 
 use Xmldoom::Definition::Database;
 use strict;

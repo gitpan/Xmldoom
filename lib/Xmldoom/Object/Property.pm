@@ -24,9 +24,9 @@ sub new
 	}
 
 	my $self = {
-		definition => $definition,
-		object    => $object,
-		autoload  => undef,
+		definition  => $definition,
+		object      => $object,
+		object_data => { },
 	};
 
 	if ( defined $self->{object} )
@@ -45,13 +45,15 @@ sub get_data_type { return shift->{definition}->get_data_type(@_); }
 sub set
 {
 	my $self = shift;
-	$self->{definition}->set( $self->{object}, @_ );
+	my $args = shift;
+	$self->{definition}->set( $self->{object}, $args, $self->{object_data} );
 }
 
 sub get
 {
 	my $self = shift;
-	return $self->{definition}->get( $self->{object} );
+	my $args = shift;
+	return $self->{definition}->get( $self->{object}, $args, $self->{object_data} );
 }
 
 sub get_hint
@@ -64,7 +66,7 @@ sub get_pretty
 {
 	my $self = shift;
 
-	my $value = $self->{definition}->get( $self->{object} );
+	my $value = $self->{definition}->get( $self->{object}, $self->{object_data} );
 	my $desc  = $self->{definition}->get_value_description( $value );
 
 	if ( defined $desc )
@@ -87,8 +89,8 @@ sub get_autoload_list
 
 sub autoload
 {
-	my ($self, $func_name) = (shift, shift);
-	return $self->{definition}->autoload( $self->{object}, $func_name, @_ );
+	my ($self, $func_name, $arg) = (shift, shift, shift);
+	return $self->{definition}->autoload( $self->{object}, $func_name, $arg, $self->{object_data} );
 }
 
 1;

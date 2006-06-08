@@ -113,6 +113,7 @@ name="bookstore" defaultIdMethod="native">
 			required="true"
 			primaryKey="true"
 			type="INTEGER"
+			auto_increment="true"
 			description="Author Id"
 		/>
 		<column
@@ -193,6 +194,9 @@ xmlns="http://gna.org/projects/xmldoom/object"
 xmlns:perl="http://gna.org/projects/xmldoom/object-perl">
 
 <object name="Book" table="book" perl:class="example::BookStore::Book">
+	<property name="book_id">
+		<simple/>
+	</property>
 	<property name="title">
 		<simple/>
 	</property>
@@ -234,6 +238,9 @@ xmlns:perl="http://gna.org/projects/xmldoom/object-perl">
 </object>
 
 <object name="Author" table="author" perl:class="example::BookStore::Author">
+	<property name="author_id">
+		<simple/>
+	</property>
 	<property name="first_name">
 		<simple/>
 	</property>
@@ -248,6 +255,9 @@ xmlns:perl="http://gna.org/projects/xmldoom/object-perl">
 </object>
 
 <object name="Publisher" table="publisher" perl:class="example::BookStore::Publisher">
+	<property name="publisher_id">
+		<simple/>
+	</property>
 	<property name="name">
 		<simple/>
 	</property>

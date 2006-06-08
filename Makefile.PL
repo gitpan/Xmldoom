@@ -4,17 +4,18 @@ use inc::Module::Install;
 name 'Xmldoom';
 abstract 'Xmldoom is a framework that allows you to bind database tables to Perl objects, a technique commonly referred to as object persistence, similar in purpose to Propel and Apache Torque';
 author 'David Snopek';
-version '0.0.11';
+version '0.0.12';
 license 'gpl';
 
 # Xmldoom and Romani versions must match!
-requires 'DBIx::Romani' => '0.0.11';
+requires 'DBIx::Romani' => '0.0.12';
 
 build_requires 'DBD::SQLite';
 build_requires 'Test::More';
 build_requires 'Test::Class';
 build_requires 'Data::Dumper';
 build_requires 'Carp';
+build_requires 'POSIX::strptime';
 requires 'XML::SAX';
 requires 'XML::DOM';
 requires 'XML::GDOME';
@@ -24,9 +25,8 @@ requires 'Scalar::Util';
 requires 'Carp';
 requires 'Data::Dumper';
 requires 'IO::File';
-requires 'File::ShareDir';
-requires 'File::Spec';
-requires 'Template';
+#requires 'File::ShareDir';
+#requires 'File::Spec';
 requires 'Module::Runtime';
 requires 'Exception::Class';
 requires 'Exception::Class::DBI';

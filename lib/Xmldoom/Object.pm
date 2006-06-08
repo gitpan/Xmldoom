@@ -3,6 +3,8 @@ package Xmldoom::Object;
 
 use Xmldoom::Definition;
 use Xmldoom::Object::Property;
+use Xmldoom::Object::Attribute;
+use Xmldoom::Object::LinkAttribute;
 use Xmldoom::ResultSet;
 use DBIx::Romani::Query::Function::Now;
 use DBIx::Romani::Query::Function::Count;
@@ -11,6 +13,7 @@ use DBIx::Romani::Query::SQL::Null;
 use Exception::Class::DBI;
 use Exception::Class::TryCatch;
 use Scalar::Util qw(weaken isweak);
+use Module::Runtime qw/ use_module /;
 use strict;
 
 # define our exceptions:
@@ -37,7 +40,7 @@ sub BindToObject
 
 sub load
 {
-	my $class = shift;
+	my $class  = shift;
 
 	# The object definition does all of the actual work with regard to 
 	# querying the database and getting the data.  We just pass it along
@@ -48,7 +51,7 @@ sub load
 
 	my $result = $class->new(undef, { data => $data });
 	
-	# call user handler
+	# call user hook
 	$result->_on_load();
 
 	return $result;
@@ -191,13 +194,14 @@ sub new
 	}
 
 	my $self = {
-		parent     => $parent,
-		dependents => [ ],
-		original   => { },
-		info       => { },
-		key        => { },
-		props      => [ ],
-		new        => 1,
+		parent      => $parent,
+		dependents  => [ ],
+		original    => { },
+		info        => { },
+		key         => { },
+		props       => [ ],
+		callbacks   => { },
+		new         => 1,
 
 		# Now, we create references in the object to the global
 		# object in the module.
@@ -222,7 +226,7 @@ sub new
 			my $col_name = $column->{name};
 
 			# put in their places
-			$self->{info}->{$col_name} = $data->{$col_name};
+			$self->{info}->{$col_name} = Xmldoom::Object::Attribute->new( $data->{$col_name} );
 			if ( $column->{primary_key} )
 			{
 				# we need to store the keys twice so that we can pivot
@@ -242,7 +246,17 @@ sub new
 		# set our defaults
 		foreach my $column ( @{$self->{DEFINITION}->get_table()->get_columns()} )
 		{
-			$self->{info}->{$column->{name}} = $column->{default};
+			$self->{info}->{$column->{name}} = Xmldoom::Object::Attribute->new( $column->{default} );
+		}
+	}
+
+	# link our attributes to the appropriate connections in the parent
+	if ( $self->{parent} )
+	{
+		my $pconn_list = $self->{DEFINITION}->find_connections( $self->{parent}->_get_object_name() );
+		foreach my $pconn ( @$pconn_list )
+		{
+			$self->_link_attr( $pconn->{local_column}, $self->{parent}, $pconn->{foreign_column} );
 		}
 	}
 
@@ -265,8 +279,19 @@ sub _get_definition  { return shift->{DEFINITION}; }
 sub _get_database    { return shift->{DEFINITION}->get_database(); }
 sub _get_object_name { return shift->{DEFINITION}->get_name(); }
 sub _get_properties  { return shift->{props}; }
-sub _get_attributes  { return shift->{info}; }
 sub _get_key         { return shift->{key}; }
+
+sub _get_attributes
+{
+	my $self = shift;
+	
+	my $data = { };
+	while ( my ($name, $attr) = each %{$self->{info}} )
+	{
+		$data->{$name} = $attr->get();
+	}
+	return $data;
+}
 
 sub _get_property
 {
@@ -293,7 +318,7 @@ sub _get_attr
 		die "Cannot get non-existant attribute \"$name\".";
 	}
 
-	return $self->{info}->{$name};
+	return $self->{info}->{$name}->get();
 }
 
 sub _set_attr
@@ -308,10 +333,72 @@ sub _set_attr
 
 	# TODO: validate the attribute.
 
-	$self->{info}->{$name} = $value;
+	if ( $self->{info}->{$name}->is_local() )
+	{
+		# we can only set attributes that are local to us.
+		$self->{info}->{$name}->set( $value );
+	}
+	else
+	{
+		# if we are manually setting a link attribute, then this 
+		# overrides it setting a local attribute.
+		$self->{info}->{$name} = Xmldoom::Object::Attribute->new( $value );
+	}
 
 	# we are changed!
 	$self->_changed();
+}
+
+sub _link_attr
+{
+	my ($self, $local_name, $object, $foreign_name) = @_;
+
+	$self->{info}->{$local_name} = Xmldoom::Object::LinkAttribute->new( $object->{info}->{$foreign_name} );
+}
+
+sub _register_callback
+{
+	my ($self, $name, $cb) = @_;
+
+	if ( not defined $self->{callbacks}->{$name} )
+	{
+		$self->{callbacks}->{$name} = [ $cb ];
+	}
+	else
+	{
+		push @{$self->{callbacks}->{$name}}, $cb;
+	}
+}
+
+sub _unregister_callback
+{
+	my ($self, $name, $cb) = @_;
+
+	if ( defined $self->{callbacks}->{$name} )
+	{
+		for( my $i = 0; $i < scalar @{$self->{callbacks}->{$name}}; $i++ )
+		{
+			if ( $self->{callbacks}->{$name}->[$i] == $cb )
+			{
+				splice @{$self->{callbacks}->{$name}}, $i, 1;
+				last;
+			}
+		}
+	}
+}
+
+sub _execute_callback
+{
+	my $self = shift;
+	my $name = shift;
+
+	if ( defined $self->{callbacks}->{$name} )
+	{
+		foreach my $cb ( @{$self->{callbacks}->{$name}} )
+		{
+			$cb->call( $cb, @_ );
+		}
+	}
 }
 
 sub save
@@ -349,11 +436,11 @@ sub save
 		$commit     = 1;
 	}
 
-	# call the user handler
-	$self->_before_save( $status );
-
 	try eval
 	{
+		# call the user handler
+		$self->_before_save( $status );
+
 		# save yourself!
 		$self->do_save( $conn );
 
@@ -395,7 +482,10 @@ sub save
 	$self->_on_save( $status );
 
 	# copy current values into the orginals stuff
-	$self->{original} = { %$self->{info} };
+	$self->{original} = $self->_get_attributes();
+
+	# call the user callbacks
+	$self->_execute_callback("onsave", $self, $status);
 }
 
 sub do_save
@@ -417,7 +507,8 @@ sub do_save
 		{
 			my $col_name = $column->{name};
 
-			if ( not defined $self->{info}->{$col_name} )
+			if ( $self->{info}->{$col_name}->is_local() and
+			     not defined $self->{info}->{$col_name}->get() )
 			{
 				# if the value is not defined, special behavior is required for
 				# some special types.
@@ -430,6 +521,9 @@ sub do_save
 					}
 					else
 					{
+						# use the module, yo!
+						use_module($column->{id_generator});
+						
 						# use the custom id generator
 						$id_gen->{$col_name} = $column->{id_generator}->new({
 							conn        => $conn,
@@ -441,7 +535,13 @@ sub do_save
 
 					if ( $id_gen->{$col_name}->is_before_insert() )
 					{
-						$values->{$col_name} = DBIx::Romani::Query::SQL::Literal->new( $id_gen->{$col_name}->get_id() );
+						my $id = $id_gen->{$col_name}->get_id();
+
+						# stash the contents of the id in the info hash
+						$self->{info}->{$col_name}->set( $id );
+
+						# put our newly found value into the query
+						$values->{$col_name} = DBIx::Romani::Query::SQL::Literal->new( $id );
 
 						# discard the id generator because this is already
 						# taken care of.
@@ -464,7 +564,7 @@ sub do_save
 			else
 			{
 				# straigt simple value...
-				$values->{$col_name} = DBIx::Romani::Query::SQL::Literal->new( $self->{info}->{$col_name} );;
+				$values->{$col_name} = DBIx::Romani::Query::SQL::Literal->new( $self->_get_attr($col_name) );
 			}
 		}
 	}
@@ -488,11 +588,10 @@ sub do_save
 			else
 			{
 				# ... and the normal values
-				$values->{$col_name} = DBIx::Romani::Query::SQL::Literal->new( $self->{info}->{$col_name} );
+				$values->{$col_name} = DBIx::Romani::Query::SQL::Literal->new( $self->_get_attr($col_name) );
 			}
 		}
 	}
-
 
 	# execute, yo!
 	#printf "save(): %s\n", $conn->generate_sql( $query, $values );
@@ -513,11 +612,11 @@ sub do_save
 
 				my $id = $id_gen->{$col_name}->get_id();
 				$self->{key}->{$col_name}  = $id;
-				$self->{info}->{$col_name} = $id;
+				$self->{info}->{$col_name}->set( $id );
 			}
 			else
 			{
-				$self->{key}->{$col_name} = $self->{info}->{$col_name};
+				$self->{key}->{$col_name} = $self->{info}->{$col_name}->get();
 			}
 		}
 	}
@@ -620,6 +719,20 @@ sub set
 	}
 }
 
+sub get
+{
+	my $self = shift;
+	
+	my $values = { };
+
+	foreach my $prop ( @{$self->{props}} )
+	{
+		$values->{$prop->get_name()} = $prop->get();
+	}
+
+	return $values;
+}
+
 sub AUTOLOAD
 {
 	my $self     = shift;
@@ -648,4 +761,21 @@ sub DESTROY
 }
 
 1;
+
+__END__
+
+=pod
+
+=hoad1 NAME
+
+Xmldoom::Object
+
+=hoad1 SYNOPSIS
+
+  # Assuming that 'MyObject' is a child of (->isa) of Xmldoom::Object 
+  use MyObject;
+
+=head1 DESCRIPTION
+
+This is the base class for all Xmldoom managed classes.  It defines their interfaces and the how they may be extended.
 
