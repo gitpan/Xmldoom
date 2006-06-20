@@ -18,8 +18,8 @@
 #     NAME => q[Xmldoom]
 #     NO_META => q[1]
 #     PL_FILES => {  }
-#     PREREQ_PM => { Scalar::Util=>q[0], XML::SAX=>q[0], DBD::SQLite=>q[0], Exception::Class::TryCatch=>q[0], Module::Runtime=>q[0], XML::DOM=>q[0], POSIX::strptime=>q[0], Exception::Class::DBI=>q[0], XML::GDOME=>q[0], IO::File=>q[0], Test::Class=>q[0], Data::Dumper=>q[0], ExtUtils::MakeMaker=>q[6.11], DBIx::Romani=>q[0.0.12], Carp=>q[0], Exception::Class=>q[0], Test::More=>q[0], XML::Writer=>q[0], XML::SAX::ExpatXS=>q[0], XML::Writer::String=>q[0] }
-#     VERSION => q[0.0.12]
+#     PREREQ_PM => { Scalar::Util=>q[0], XML::SAX=>q[0], DBD::SQLite=>q[0], Exception::Class::TryCatch=>q[0], Module::Runtime=>q[0], XML::DOM=>q[0], POSIX::strptime=>q[0], Exception::Class::DBI=>q[0], XML::GDOME=>q[0], IO::File=>q[0], Test::Class=>q[0], Data::Dumper=>q[0], ExtUtils::MakeMaker=>q[6.11], DBIx::Romani=>q[0.0.13], Carp=>q[0], Exception::Class=>q[0], Test::More=>q[0], XML::Writer=>q[0], XML::SAX::ExpatXS=>q[0], XML::Writer::String=>q[0] }
+#     VERSION => q[0.0.13]
 #     dist => { PREOP=>q[$(PERL) -I. -MModule::Install::Admin -e "dist_preop(q($(DISTVNAME)))"] }
 
 # --- MakeMaker post_initialize section:
@@ -59,11 +59,11 @@ AR_STATIC_ARGS = cr
 DIRFILESEP = /
 NAME = Xmldoom
 NAME_SYM = Xmldoom
-VERSION = 0.0.12
+VERSION = 0.0.13
 VERSION_MACRO = VERSION
-VERSION_SYM = 0_0_12
+VERSION_SYM = 0_0_13
 DEFINE_VERSION = -D$(VERSION_MACRO)=\"$(VERSION)\"
-XS_VERSION = 0.0.12
+XS_VERSION = 0.0.13
 XS_VERSION_MACRO = XS_VERSION
 XS_DEFINE_VERSION = -D$(XS_VERSION_MACRO)=\"$(XS_VERSION)\"
 INST_ARCHLIB = blib/arch
@@ -335,7 +335,7 @@ RCS_LABEL = rcs -Nv$(VERSION_SYM): -q
 DIST_CP = best
 DIST_DEFAULT = tardist
 DISTNAME = Xmldoom
-DISTVNAME = Xmldoom-0.0.12
+DISTVNAME = Xmldoom-0.0.13
 
 
 # --- MakeMaker macro section:
@@ -818,14 +818,14 @@ testdb_static :: testdb_dynamic
 # --- MakeMaker ppd section:
 # Creates a PPD (Perl Package Description) for a binary distribution.
 ppd:
-	$(NOECHO) $(ECHO) '<SOFTPKG NAME="$(DISTNAME)" VERSION="0,0,12,0">' > $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '<SOFTPKG NAME="$(DISTNAME)" VERSION="0,0,13,0">' > $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <TITLE>$(DISTNAME)</TITLE>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <ABSTRACT>Xmldoom is a framework that allows you to bind database tables to Perl objects, a technique commonly referred to as object persistence, similar in purpose to Propel and Apache Torque</ABSTRACT>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <AUTHOR>David Snopek</AUTHOR>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <IMPLEMENTATION>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Carp" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="DBD-SQLite" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
-	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="DBIx-Romani" VERSION="0,0,12,0" />' >> $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="DBIx-Romani" VERSION="0,0,13,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Data-Dumper" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Exception-Class" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <DEPENDENCY NAME="Exception-Class-DBI" VERSION="0,0,0,0" />' >> $(DISTNAME).ppd

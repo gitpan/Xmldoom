@@ -24,6 +24,7 @@ sub new
 	my $options_criteria;
 	my $inclusive;
 	my $inter_table;
+	my $key_attributes;
 
 	if ( ref($args) eq 'HASH' )
 	{
@@ -36,6 +37,7 @@ sub new
 		$options_criteria = $args->{options_criteria};
 		$inclusive        = $args->{inclusive};
 		$inter_table      = $args->{inter_table};
+		$key_attributes   = $args->{key_attributes};
 	}
 	else
 	{
@@ -82,9 +84,77 @@ sub new
 	$self->{options_criteria}  = $options_criteria;
 	$self->{inclusive}         = $inclusive || 0;
 	$self->{inter_table}       = $inter_table;
+	#$self->{conns}             = [ ];
 
-	# cache this since every function calls it!
-	$self->{conns} = $parent->find_connections( $object_name );
+	my $conns = $parent->find_connections( $object_name );
+
+	# loop through the conns looking for conflicts, ie. When a 
+	# foreign_table and foreign_column pair is used twice.  If so, and
+	# there are no key_attributes set, then complain.  Otherwise, compare
+	# the key_attributes against the local_table and local_column and choose
+	# those connections over the others.  If the key_attributes are set
+	# for no good reason, you should complain to.
+	my $foreign_columns = { };
+	my $ambiguous_key   = 0;
+
+	foreach my $conn ( @$conns )
+	{
+		if ( defined $foreign_columns->{$conn->{foreign_column}} )
+		{
+			push @{$foreign_columns->{$conn->{foreign_column}}}, $conn;
+			$ambiguous_key = 1;
+		}
+		else
+		{
+			$foreign_columns->{$conn->{foreign_column}} = [ $conn ];
+		}
+	}
+
+	if ( not $ambiguous_key )
+	{
+		if ( defined $key_attributes )
+		{
+			print STDERR "WARNING: Specifying a key attributes for this object property when it is not ambiguous!\n";
+		}
+
+		# if the key isn't ambiguous, then just use the connections
+		$self->{conns} = $conns;
+	}
+	elsif ( not defined $key_attributes )
+	{
+		die $self->{name} . ": It is ambiguous which connection to the foreign object is intended in this property.  You must specify a <key/> section to your <object/> property.";
+	}
+	else
+	{
+		$self->{conns} = [ ];
+
+		# now we build up the list of connections disambiguated.
+		conn_list: foreach my $conn_list ( values %$foreign_columns )
+		{
+			if ( scalar @$conn_list == 1 )
+			{
+				# this isn't one of the ambiguous connections, so just add it.
+				push @{$self->{conns}}, $conn_list->[0];
+			}
+			else
+			{
+				# attempt to disambiguate...
+				foreach my $conn ( @$conn_list )
+				{
+					foreach my $attr ( @$key_attributes )
+					{
+						if ( $conn->{local_column} eq $attr )
+						{
+							push @{$self->{conns}}, $conn;
+							next conn_list;
+						}
+					}
+				}
+
+				die "It is ambiguous which connection to the foreign object is intended in this property.  The <key/> section of this <object/> property is insufficient to disambiguate.";
+			}
+		}
+	}
 
 	bless  $self, $class;
 	return $self;
@@ -196,14 +266,20 @@ sub get
 				$object_data->{unsaved_object} = undef;
 			}
 			
-			# simply load the object
+			# simply load the data
 			my $object_key = { };
 			foreach my $conn ( @{$self->{conns}} )
 			{
 				$object_key->{$conn->{foreign_column}} = $object->_get_attr($conn->{local_column});
 			}
 			my $data = $self->get_object_definition()->load( $object_key );
-			return $class->new(undef, { data => $data, parent => $object });
+
+			# return the appropriate object
+			return $class->new(undef, {
+				data => $data,
+				parent => $object,
+				parent_conns => $self->{conns}
+			});
 		}
 	}
 	elsif ( $self->get_type() eq 'external' )

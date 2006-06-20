@@ -180,13 +180,15 @@ sub new
 	my $private_args = shift;
 
 	my $parent;
+	my $parent_conns;
 	my $data;
 	my $sets;
 
 	if ( ref($private_args) eq "HASH" )
 	{
-		$parent = $private_args->{parent};
-		$data   = $private_args->{data};
+		$parent       = $private_args->{parent};
+		$parent_conns = $private_args->{parent_conns};
+		$data         = $private_args->{data};
 	}
 	if ( ref($public_args) eq "HASH" )
 	{
@@ -253,8 +255,13 @@ sub new
 	# link our attributes to the appropriate connections in the parent
 	if ( $self->{parent} )
 	{
-		my $pconn_list = $self->{DEFINITION}->find_connections( $self->{parent}->_get_object_name() );
-		foreach my $pconn ( @$pconn_list )
+		if ( not defined $parent_conns )
+		{
+			# if they aren't specified then we guess...
+			$parent_conns = $self->{DEFINITION}->find_connections( $self->{parent}->_get_object_name() );
+		}
+
+		foreach my $pconn ( @$parent_conns )
 		{
 			$self->_link_attr( $pconn->{local_column}, $self->{parent}, $pconn->{foreign_column} );
 		}
@@ -273,6 +280,24 @@ sub new
 	}
 
 	return $self;
+}
+
+sub copy
+{
+	my $self = shift;
+
+	my $class = ref($self);
+	my $copy = $class->new();
+
+	foreach my $column ( @{$self->{DEFINITION}->get_table()->get_columns()} )
+	{
+		if ( not $column->{primary_key} )
+		{
+			$copy->_set_attr( $column->{name}, $self->_get_attr($column->{name}) );
+		}
+	}
+
+	return $copy;
 }
 
 sub _get_definition  { return shift->{DEFINITION}; }
@@ -558,8 +583,11 @@ sub do_save
 				{
 					$values->{$col_name} = DBIx::Romani::Query::Function::Now->new();
 				}
-
-				# TODO: else, insert a NULL!
+				else
+				{
+					# else, insert a NULL!
+					$values->{$col_name} = DBIx::Romani::Query::SQL::Null->new();
+				}
 			}
 			else
 			{
@@ -766,13 +794,13 @@ __END__
 
 =pod
 
-=hoad1 NAME
+=head1 NAME
 
 Xmldoom::Object
 
-=hoad1 SYNOPSIS
+=head1 SYNOPSIS
 
-  # Assuming that 'MyObject' is a child of (->isa) of Xmldoom::Object 
+  # Assuming that 'MyObject' is a child of (->isa) Xmldoom::Object 
   use MyObject;
 
 =head1 DESCRIPTION

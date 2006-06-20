@@ -19,7 +19,7 @@ http://gna.org/projects/xmldoom
 
 =head1 DESCRIPTION
 
-Xmldoom is what is commonly refered to an I<Object Persistence Framework> or an 
+Xmldoom is what is commonly refered to as an I<Object Persistence Framework> or an 
 I<Object-Relational Mapping> [1].  Basically, it is a framework that allows you to create 
 an automatic mapping between the tables in your relational database and the code objects 
 you use to manipulate it.  Any large database bound application will eventually create
@@ -77,11 +77,59 @@ Currently, documentation is very scarce.  However, I am working really hard righ
 that.  I know that this is far too complicated a package to even begin using without good
 documentation.
 
+=over
+
+=item L<Xmldoom::doc::GettingStarted>
+
+A step-by-step tutorial to setting up Xmldoom.
+
+=item L<Xmldoom::doc::UsingTorque>
+
+How to use the Apache Torque generator to work with your database.xml.
+
+=back
+
 =head1 AUTHOR
 
 David Snopek <dsnopek@gmail.com>
 
 =head1 SEE ALSO
+
+Like I mentioned above, automatic I<Object Relational Mapping> is far from a new concept and there
+is absolutely no general consensus on how it should be done.  Many others exist for Perl, and they are
+all drastically different from eachother.  Xmldoom is unique in the way it gets this job done, however,
+it was designed this way to tackle a specific problem-set.  So, if you don't think that Xmldoom is a good
+fit for your project, try out some of these other great Perl packages:
+
+=over
+
+=item *
+
+L<Class::DBI>
+
+=item *
+
+L<Rose::DB::Object>
+
+=item *
+
+L<OOPS>
+
+=item *
+
+L<ORM>
+
+=item *
+
+L<DBIx::Class>
+
+=item *
+
+L<Alzabo>
+
+=back
+
+=head1 FOOTNOTES
 
 [1] "Object-relational mapping" at the Wikipedia -- L<http://en.wikipedia.org/wiki/Object-relational_mapping>
 

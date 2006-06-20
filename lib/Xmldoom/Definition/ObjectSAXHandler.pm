@@ -374,6 +374,41 @@ sub start_element
 
 		$self->{prop_args}->{hints}->{$name} = $value;
 	}
+	elsif ( $name eq 'key' )
+	{
+		if ( $self->{phase} == 1 )
+		{
+			# we skip over these in phase 1 !!
+			return;
+		}
+
+		if ( $self->{prop_type} eq 'object' )
+		{
+			$self->{prop_args}->{key_attributes} = [ ];
+		}
+		else
+		{
+			die "Can only put a <key/> section inside of an <object/> property.";
+		}
+	}
+	elsif ( $name eq 'attribute' )
+	{
+		if ( $self->{phase} == 1 )
+		{
+			# we skip over these in phase 1 !!
+			return;
+		}
+
+		if ( not defined $self->{prop_args}->{key_attributes} )
+		{
+			die "<attribute/> tag must be inside of <key> section";
+		}
+
+		if ( defined $attrs->{'{}name'} )
+		{
+			push @{$self->{prop_args}->{key_attributes}}, $attrs->{'{}name'}->{Value};
+		}
+	}
 	else
 	{
 		die "Unknown tag: $name";

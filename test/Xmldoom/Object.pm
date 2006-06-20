@@ -22,6 +22,7 @@ use example::BookStore::Author;
 use example::BookStore::Publisher;
 use example::BookStore::Order;
 use example::BookStore::BooksOrdered;
+use example::BookStore::Test1;
 
 use Data::Dumper;
 
@@ -726,11 +727,11 @@ sub objectGetAllProps : Test(5)
 	my $book  = example::BookStore::Book->load({ book_id => 1 });
 	my $props = $book->get();
 
-	is( $props->{title},                    "My Science Fiction Autobiography" );
-	is( $props->{isbn},                     "141162730X" );
-	is( $props->{author}->get_first_name(), "Russell A" );
-	is( $props->{author}->get_last_name(),  "Snopek" );
-	is( $props->{publisher}->get_name(),    "Lulu Press" );
+	is( $props->{title},                     "My Science Fiction Autobiography" );
+	is( $props->{isbn},                      "141162730X" );
+	is( $props->{author}->get_first_name(),  "Russell A" );
+	is( $props->{author}->get_last_name(),   "Snopek" );
+	is( $props->{publisher}->get_name(),     "Lulu Press" );
 }
 
 sub objectCallback0
@@ -761,6 +762,49 @@ sub objectCallback1 : Test(2)
 	$self->{callback_test} = 'value3';
 	$book->_execute_callback('onwowza');
 	is( $self->{callback_test}, 'value3' );
+}
+
+sub testDualConn1 : Test(8)
+{
+	my $self = shift;
+
+	my $test = example::BookStore::Test1->new();
+	$test->set_book1( example::BookStore::Book->load({ book_id => 1 }) );
+	$test->set_book2( example::BookStore::Book->load({ book_id => 2 }) );
+	
+	# check that the property sets worked correctly.
+	is( $test->_get_attr('book_id_1'), 1 );
+	is( $test->_get_attr('book_id_2'), 2 );
+
+	$test->save();
+
+	# see that everything saved correctly
+	is( $test->_get_attr('book_id_1'), 1 );
+	is( $test->_get_attr('book_id_2'), 2 );
+
+	my $test2 = example::BookStore::Test1->load({ id => 1 });
+
+	# test loading the object from the database
+	is( $test2->_get_attr('book_id_1'), 1 );
+	is( $test2->_get_attr('book_id_2'), 2 );
+
+	# test that the object get functions
+	is( $test2->get_book1()->get_title(), "My Science Fiction Autobiography" );
+	is( $test2->get_book2()->get_title(), "The Hitchhikers Guide to the Galaxy" );
+}
+
+sub testCopy : Test(2)
+{
+	my $self = shift;
+
+	my $book = example::BookStore::Book->load({ book_id => 1 });
+	my $book2 = $book->copy();
+	
+	is( $book2->get_title(), 'My Science Fiction Autobiography' );
+
+	$book2->save();
+
+	is( $book2->_get_attr('book_id'), 7 );
 }
 
 1;

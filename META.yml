@@ -16,11 +16,12 @@ no_index:
   directory:
     - test
     - example
+    - pod
     - inc
     - t
 requires:
   Carp: 0
-  DBIx::Romani: 0.0.12
+  DBIx::Romani: 0.0.13
   Data::Dumper: 0
   Exception::Class: 0
   Exception::Class::DBI: 0
@@ -34,4 +35,4 @@ requires:
   XML::SAX::ExpatXS: 0
   XML::Writer: 0
   XML::Writer::String: 0
-version: 0.0.12
+version: 0.0.13

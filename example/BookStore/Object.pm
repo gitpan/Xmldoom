@@ -184,6 +184,41 @@ name="bookstore" defaultIdMethod="native">
 			/>
 		</foreign-key>
 	</table>
+
+	<!-- Used to test using two connections to the same table.  This
+	     type of operation isnt fully supported, so we cant integrate
+		 it into any of the normal example objects. -->
+	<table name="test_1">
+		<column
+			name="id"
+			type="INTEGER"
+			primaryKey="true"
+		/>
+		<column
+			name="book_id_1"
+			type="INTEGER"
+			required="true"
+		/>
+		<column
+			name="book_id_2"
+			type="INTEGER"
+			required="true"
+		/>
+
+		<foreign-key foreignTable="book">
+			<reference
+				local="book_id_1"
+				foreign="book_id"
+			/>
+		</foreign-key>
+
+		<foreign-key foreignTable="book">
+			<reference
+				local="book_id_2"
+				foreign="book_id"
+			/>
+		</foreign-key>
+	</table>
 </database>
 EOF
 	
@@ -213,7 +248,7 @@ xmlns:perl="http://gna.org/projects/xmldoom/object-perl">
 	<property name="author">
 		<object name="Author"/>
 	</property>
-	
+		
 	<!-- a custom property type! -->
 	<property name="age">
 		<custom perl:class="example::BookStore::BookAgeProperty"/>
@@ -291,6 +326,26 @@ xmlns:perl="http://gna.org/projects/xmldoom/object-perl">
 	</property>
 	<property name="quantity">
 		<simple/>
+	</property>
+</object>
+
+<object name="Test1" table="test_1" perl:class="example::BookStore::Test1">
+	<property name="id">
+		<simple/>
+	</property>
+	<property name="book1">
+		<object name="Book">
+			<key>
+				<attribute name="book_id_1"/>
+			</key>
+		</object>
+	</property>
+	<property name="book2">
+		<object name="Book">
+			<key>
+				<attribute name="book_id_2"/>
+			</key>
+		</object>
 	</property>
 </object>
 </objects>

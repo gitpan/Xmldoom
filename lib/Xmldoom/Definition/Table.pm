@@ -215,6 +215,17 @@ sub add_foreign_key
 		die "Table doesn't have local column named \"$foreign_key->{local_column}\"";
 	}
 
+	# check that the foriegn key doesn't already exist
+	foreach my $other ( @{$self->{foreign_keys}} )
+	{
+		if ( $foreign_key->{local_column}   eq $other->{local_column} and
+		     $foreign_key->{foreign_table}  eq $other->{foreign_table} and
+			 $foreign_key->{foreign_column} eq $other->{foreign_column} )
+		{
+			die "Can't add an identical foreign key multiple times";
+		}
+	}
+
 	push @{$self->{foreign_keys}}, $foreign_key;
 }
 

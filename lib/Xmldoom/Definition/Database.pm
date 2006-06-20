@@ -122,7 +122,7 @@ sub find_connections
 		my $c = { %$conn, local_table => $table1_name };
 		push @conns, $c;
 	}
-	foreach my $conn ( @{$table2->find_connections( $table1_name )} )
+	conn: foreach my $conn ( @{$table2->find_connections( $table1_name )} )
 	{
 		# we have to switch everything to relate from the first table
 		my $c = {
@@ -131,6 +131,20 @@ sub find_connections
 			foreign_table  => $table2_name,
 			foreign_column => $conn->{local_column},
 		};
+
+		# make sure there aren't any duplicates.
+		foreach my $other ( @conns )
+		{
+			if ( $c->{local_table}    eq $other->{local_table} and
+			     $c->{local_column}   eq $other->{local_column} and
+				 $c->{foreign_table}  eq $other->{foreign_table} and
+				 $c->{foreign_column} eq $other->{foreign_column} )
+			{
+				# skip to the next one, because this is a duplicate.
+				next conn;
+			}
+		}
+
 		push @conns, $c;
 	}
 
