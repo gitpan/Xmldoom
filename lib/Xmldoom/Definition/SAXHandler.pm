@@ -1,11 +1,12 @@
 
-package Xmldoom::Definition::ObjectSAXHandler;
+package Xmldoom::Definition::SAXHandler;
 use base qw(XML::SAX::Base);
 
 use Xmldoom::Definition::Property::Simple;
 use Xmldoom::Definition::Property::Object;
 use Xmldoom::Definition::Property::PlaceHolder;
 use Xmldoom::Criteria::XML;
+use Xmldoom::Threads;
 use DBIx::Romani::Query::XML::Util qw/parse_boolean/;
 use XML::GDOME;
 use Module::Runtime qw(use_module);
@@ -142,6 +143,7 @@ sub start_element
 		my $args = { 
 			parent  => $self->{cur_obj},
 			name    => $self->{prop_name},
+			shared  => Xmldoom::Threads::is_shared($self->{database}),
 		};
 
 		if ( defined $attrs->{'{}description'} )
@@ -268,6 +270,10 @@ sub start_element
 		if ( defined $attrs->{'{}inclusive'} )
 		{
 			$self->{prop_args}->{inclusive} = parse_boolean( $attrs->{'{}inclusive'}->{Value} );
+		}
+		if ( defined $attrs->{'{}dependent'} )
+		{
+			$self->{prop_args}->{options_dependent} = parse_boolean( $attrs->{'{}dependent'}->{Value} );
 		}
 
 		# split for the two property types

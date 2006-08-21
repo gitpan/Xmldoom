@@ -1,8 +1,13 @@
 #/usr/bin/perl -w
 
-use test::Xmldoom::Definition;
+use test::Xmldoom::Schema::Parser;
+use test::Xmldoom::Definition::Database;
+use test::Xmldoom::Definition::Object;
+use test::Xmldoom::Definition::SAXHandler;
 use test::Xmldoom::Criteria;
 use test::Xmldoom::Object;
+use test::SQL::Translator::Parser::XML::Xmldoom;
+use test::SQL::Translator::Producer::XML::Xmldoom;
 
 use Carp;
 

@@ -79,12 +79,18 @@ sub generate_object_hash
 			$prop_data->{object_type} = $prop->get_type();
 			$prop_data->{connections} = [ ];
 
-			foreach my $conn ( @{$object->find_connections($prop->get_object_name())} )
+			my $link = $prop->get_link();
+		
+			# TODO: hock for inter-table, where $link colud be undefined.
+			if ( defined $link )
 			{
-				push @{$prop_data->{connections}}, {
-					self  => $conn->{local_column},
-					other => $conn->{foreign_column},
-				};
+				foreach my $conn ( @{$link->get_start()->get_column_names()} )
+				{
+					push @{$prop_data->{connections}}, {
+						self  => $conn->{local_column},
+						other => $conn->{foreign_column},
+					};
+				}
 			}
 		}
 

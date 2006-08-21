@@ -197,19 +197,22 @@ sub get_conn_query
 		}
 
 		# find a connection to one of the other tables
-		my $conns;
+		my $link;
 		foreach my $foreign_table_name ( @$tables )
 		{
-			$conns = $database->find_connections( $table_name, $foreign_table_name );
+			my $links = $database->find_links( $table_name, $foreign_table_name );
+
+			# TODO: deal with multiple links to the same table!
 
 			# break if found
-			if ( $conns )
+			if ( scalar @$links > 0 )
 			{
+				$link = $links->[0];
 				last;
 			}
 		}
 
-		if ( scalar @$conns == 0 )
+		if ( not defined $link )
 		{
 			print STDERR "** Unable to automatically join '$table_name' to any other tables in our search!\n";
 			print STDERR "** 99\% of the time, this is an ERROR!  However, that 1\% must still work!\n";
@@ -217,19 +220,21 @@ sub get_conn_query
 
 			#die "Unable to join $table_name to any other tables in our search";
 		}
-
-		# join the two tables
-		foreach my $conn ( @$conns )
+		else
 		{
-			my $join = DBIx::Romani::Query::Comparison->new();
+			# join the two tables
+			foreach my $conn ( @{$link->get_start()->get_column_names()} )
+			{
+				my $join = DBIx::Romani::Query::Comparison->new();
 
-			# NOTE: We do this in reverse than expected order because we looping
-			# essentially backwards.  The first item on the list of foriegn tables
-			# is thought to be our master table...
+				# NOTE: We do this in reverse than expected order because we looping
+				# essentially backwards.  The first item on the list of foriegn tables
+				# is thought to be our master table...
 
-			$join->add( DBIx::Romani::Query::SQL::Column->new( $conn->{foreign_table}, $conn->{foreign_column} ) );
-			$join->add( DBIx::Romani::Query::SQL::Column->new( $conn->{local_table}, $conn->{local_column} ) );
-			$where->add( $join );
+				$join->add( DBIx::Romani::Query::SQL::Column->new( $conn->{foreign_table}, $conn->{foreign_column} ) );
+				$join->add( DBIx::Romani::Query::SQL::Column->new( $conn->{local_table}, $conn->{local_column} ) );
+				$where->add( $join );
+			}
 		}
 	}
 

@@ -2,6 +2,7 @@
 package Xmldoom::Criteria;
 
 use Xmldoom::Criteria::Search;
+use Xmldoom::Threads;
 use DBIx::Romani::Query::SQL::Column;
 use strict;
 
@@ -34,10 +35,12 @@ sub new
 	my $args  = shift;
 
 	my $parent;
+	my $shared;
 
 	if ( ref($args) eq 'HASH' )
 	{
 		$parent = $args->{parent};
+		$shared = $args->{shared};
 	}
 	else
 	{
@@ -55,23 +58,9 @@ sub new
 
 	bless $self, $class;
 
-	# TODO: Shouldn't this really happen just before we create the query?!?
-	# automatically add the params from the parent
-	if ( $parent )
-	{
-		# add the values of its primary keys to the criteria
-		foreach my $col ( @{$parent->{DEFINITION}->get_table()->get_columns()} )
-		{
-			if ( $col->{primary_key} )
-			{
-				my $attr_name = join '/', $parent->{DEFINITION}->get_table_name(), $col->{name};
-				# we use key instead of the attr values, in case they were changed, we
-				# should still query against the current database value.
-				$self->add_attr( $attr_name, $parent->{key}->{$col->{name}} );
-			}
-		}
-	}
-	
+	# we want to move into shared memory as soon as possible
+	$self = Xmldoom::Threads::make_shared($self, $shared);
+
 	return $self;
 }
 
@@ -81,6 +70,12 @@ sub get_order_by { return shift->{order_by}; }
 sub get_group_by { return shift->{order_by}; }
 sub get_limit    { return shift->{limit}; }
 sub get_offset   { return shift->{offset}; }
+
+sub set_parent
+{
+	my ($self, $parent) = @_;
+	$self->{parent} = $parent;
+}
 
 sub set_limit
 {
@@ -312,30 +307,53 @@ sub _setup_query
 {
 	my ($self, $database, $tables, $query) = @_;
 
+	my $search;
+
+	if ( defined $self->{parent} )
+	{
+		$search = $self->{search}->clone();
+
+		# add the values of its primary keys to the criteria
+		foreach my $col ( @{$self->{parent}->_get_definition()->get_table()->get_columns()} )
+		{
+			if ( $col->{primary_key} )
+			{
+				my $attr_name = join '/', $self->{parent}->_get_definition()->get_table_name(), $col->{name};
+				# we use key instead of the attr values, in case they were changed, we
+				# should still query against the current database value.
+				$search->add_attr( $attr_name, $self->{parent}->{key}->{$col->{name}} );
+			}
+		}
+	}
+	else
+	{
+		$search = $self->{search};
+	}
+
 	# get our search info
-	my $search = $self->{search}->generate( $database, $tables );
+	my $info = $search->generate( $database, $tables );
 	
 	# add the from stuff
-	foreach my $table_name ( @{$search->{from_tables}} )
+	foreach my $table_name ( @{$info->{from_tables}} )
 	{
 		$query->add_from( $table_name );
 	}
 
 	# build the where clause
 	my $where;
-	if ( defined $search->{conn_where} )
+	if ( defined $info->{conn_where} )
 	{
-		$where = $search->{conn_where};
+		$where = $info->{conn_where};
 	}
-	if ( defined $search->{search_where} )
+	if ( defined $info->{search_where} )
 	{
 		if ( $where )
 		{
-			$where->add( $search->{search_where} );
+			$where->add( $info->{search_where} );
 		}
 		else
 		{
-			$where = $search->{search_where};
+			$where = $info->{search_where};
 		}
 	}
 	$query->set_where( $where );
@@ -451,9 +469,15 @@ sub generate_description
 
 sub clone
 {
-	my $self = shift;
+	my $self   = shift;
+	my $parent = shift;
+
+	if ( not defined $parent )
+	{
+		$parent = $self->get_parent();
+	}
 	
-	my $criteria = Xmldoom::Criteria->new( $self->get_parent() );
+	my $criteria = Xmldoom::Criteria->new( $parent );
 
 	# copy all the deep information
 	$criteria->{search} = $self->{search}->clone();

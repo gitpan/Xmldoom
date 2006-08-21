@@ -71,6 +71,7 @@ dojo.declare('Xmldoom.Definition.Property.Object', Xmldoom.Definition.Property.B
 		this.object_name = args.object_name;
 		this.type        = args.object_type;
 		this.connections = args.connections;
+		this.inter_table = args.inter_table;
 	},
 	get: function (object, args)
 	{

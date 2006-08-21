@@ -83,6 +83,10 @@ documentation.
 
 A step-by-step tutorial to setting up Xmldoom.
 
+=item L<Xmldoom::doc::UsingSQLTranslator>
+
+How to use SQL::Translator to work with your database.xml.
+
 =item L<Xmldoom::doc::UsingTorque>
 
 How to use the Apache Torque generator to work with your database.xml.

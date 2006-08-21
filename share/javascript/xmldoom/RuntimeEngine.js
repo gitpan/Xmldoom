@@ -22,19 +22,57 @@ Xmldoom.RuntimeEngine.make_objects = function (definition, data)
 	return result;
 }
 
-Xmldoom.RuntimeEngine.Search = function (definition, criteria, callback)
+Xmldoom.RuntimeEngine.Search = function (definition, criteria, callback, includeCount)
 {
 	if ( callback )
 	{
-		var onload = function (result)
+		var onload = function (data)
 		{
-			callback(Xmldoom.RuntimeEngine.make_objects(definition, result));
+			var result;
+			var count;
+
+			if ( includeCount )
+			{
+				result = data.result;
+				count  = data.count;
+			}
+			else
+			{
+				result = data;
+			}
+
+			// parse into objects
+			result = Xmldoom.RuntimeEngine.make_objects(definition, result);
+
+			if ( includeCount )
+			{
+				callback({
+					result: result,
+					count:  count
+				});
+			}
+			else
+			{
+				callback(result);
+			}
 		}
-		definition.search(criteria, onload);
+		definition.search(criteria, onload, includeCount);
 	}
 	else
 	{
-		return Xmldoom.RuntimeEngine.make_objects(definition, definition.search(criteria));
+		var data = definition.search(criteria, null, includeCount);
+
+		if ( includeCount )
+		{
+			return {
+				result: Xmldoom.RuntimeEngine.make_objects(definition, data.result),
+				count:  data.count
+			};
+		}
+		else
+		{
+			return Xmldoom.RuntimeEngine.make_objects(definition, data);
+		}
 	}
 }
 

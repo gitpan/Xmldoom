@@ -79,9 +79,14 @@ dojo.declare('Xmldoom.Definition.Object', null,
 		return this.get_db_connection().load(this.get_name(), keys);
 	},
 	
-	search: function (criteria, callback)
+	search: function (criteria, callback, includeCount)
 	{
-		return this.get_db_connection().search(this.get_name(), criteria, callback);
+		return this.get_db_connection().search(this.get_name(), criteria, callback, includeCount);
+	},
+
+	count: function (criteria, callback)
+	{
+		return this.get_db_connection().count(this.get_name(), criteria);
 	}
 });
 

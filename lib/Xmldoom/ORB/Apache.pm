@@ -37,6 +37,7 @@ sub handler {
 
 	my $req_location = $r->location;
 	my $req_uri      = $r->uri;
+	my $req_query    = $r->args;
 
 	my $obj_and_op;
 
@@ -82,7 +83,7 @@ sub handler {
 	}
 	#print STDERR "POST: $buffer\n";
 
-	my $cgi = CGI->new();
+	my $cgi = CGI->new( $req_query );
 
 	# send the format header
 	$r->send_http_header( $TRANSPORT->get_mime_type() );
@@ -105,8 +106,22 @@ sub handler {
 		my $criteria = Xmldoom::Criteria::XML::parse_string($buffer, $DATABASE);
 		my $rs = $definition->search_rs( $criteria );
 
+		my $count;
+		if ( $cgi->param( 'includeCount' ) )
+		{
+			$count = $definition->count( $criteria );
+		}
+
 		# write it!
-		$TRANSPORT->write_object_list($rs);
+		$TRANSPORT->write_object_list($rs, $count);
+	}
+	elsif ( $operation eq 'count' )
+	{
+		my $criteria = Xmldoom::Criteria::XML::parse_string($buffer, $DATABASE);
+		my $count    = $definition->count( $criteria );
+
+		# write it!
+		$TRANSPORT->write_count($count);
 	}
 };
 

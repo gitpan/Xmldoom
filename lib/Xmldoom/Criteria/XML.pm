@@ -38,6 +38,15 @@ sub create_criteria_from_node
 
 	my $criteria = Xmldoom::Criteria->new($parent);
 
+	my $limit  = $parent_node->getAttribute('limit');
+	my $offset = $parent_node->getAttribute('offset');
+
+	if ( (defined $limit  and $limit  ne "") or
+	     (defined $offset and $offset ne "") )
+	{
+		$criteria->set_limit($limit, $offset);
+	}
+
 	my $has_constraints = 0;
 	my $has_order_by    = 0;
 	my $has_group_by    = 0;
@@ -190,6 +199,20 @@ sub _parse_constraints_section
 				{
 					$criteria->add_attr( $prop_name, $cons->{value}, $cons->{type} );
 				}
+			}
+			elsif ( $name eq 'join-properties' )
+			{
+				my $attr_name1 = $node->getAttribute('name1');
+				my $attr_name2 = $node->getAttribute('name2');
+
+				$criteria->join_prop( $attr_name1, $attr_name2 );
+			}
+			elsif ( $name eq 'join-attributes' )
+			{
+				my $attr_name1 = $node->getAttribute('name1');
+				my $attr_name2 = $node->getAttribute('name2');
+
+				$criteria->join_attr( $attr_name1, $attr_name2 );
 			}
 			elsif ( $name eq 'and' or $name eq 'or' )
 			{

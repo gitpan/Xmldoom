@@ -38,9 +38,33 @@ sub new
 	return $self;
 }
 
-sub get_name      { return shift->{definition}->get_name(); }
-sub get_type      { return shift->{definition}->get_type(); }
-sub get_data_type { return shift->{definition}->get_data_type(@_); }
+sub get_definition { return shift->{definition}; }
+sub get_name       { return shift->{definition}->get_name(); }
+sub get_type       { return shift->{definition}->get_type(); }
+
+sub get_data_type
+{
+	my $self = shift;
+	my $args = shift;
+
+	if ( ref($args) ne 'HASH' )
+	{
+		$args = { };
+	}
+
+	# we want to pass our object along, in case the property
+	# options are dependent.
+	$args->{object} = $self->{object};
+
+	return $self->{definition}->get_data_type($args);
+}
+
+sub get_options
+{
+	my $self = shift;
+
+	return $self->{definition}->get_options($self->{object});
+}
 
 sub set
 {

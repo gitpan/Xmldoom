@@ -23,13 +23,13 @@ sub write_object
 
 sub write_object_list
 {
-	my ($self, $rs) = (shift, shift);
+	my ($self, $rs, $count) = (shift, shift, shift);
 
 	#
 	# NOTE: kind of a hack so that we can do this progressively.
 	#
 
-	print "[";
+	print "{'result':[";
 	my $first = 1;
 	while ( 1 )
 	{
@@ -53,6 +53,20 @@ sub write_object_list
 		}
 	}
 	print "]";
+
+	if ( defined $count )
+	{
+		print ",'count':$count";
+	}
+
+	print "}";
+}
+
+sub write_count
+{
+	my ($self, $count) = (shift, shift);
+
+	print "{'count':$count}";
 }
 
 1;

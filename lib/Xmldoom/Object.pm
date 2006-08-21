@@ -180,14 +180,14 @@ sub new
 	my $private_args = shift;
 
 	my $parent;
-	my $parent_conns;
+	my $parent_link;
 	my $data;
 	my $sets;
 
 	if ( ref($private_args) eq "HASH" )
 	{
 		$parent       = $private_args->{parent};
-		$parent_conns = $private_args->{parent_conns};
+		$parent_link  = $private_args->{parent_link};
 		$data         = $private_args->{data};
 	}
 	if ( ref($public_args) eq "HASH" )
@@ -197,6 +197,7 @@ sub new
 
 	my $self = {
 		parent      => $parent,
+		definition  => $OBJECTS{$class},
 		dependents  => [ ],
 		original    => { },
 		info        => { },
@@ -204,10 +205,6 @@ sub new
 		props       => [ ],
 		callbacks   => { },
 		new         => 1,
-
-		# Now, we create references in the object to the global
-		# object in the module.
-		DEFINITION => $OBJECTS{$class}
 	};
 
 	# weaken reference to parent
@@ -223,13 +220,13 @@ sub new
 	# we should set all the default values.
 	if ( defined $data )
 	{
-		foreach my $column ( @{$self->{DEFINITION}->get_table()->get_columns()} )
+		foreach my $column ( @{$self->{definition}->get_table()->get_columns()} )
 		{
-			my $col_name = $column->{name};
+			my $col_name = $column->get_name();
 
 			# put in their places
 			$self->{info}->{$col_name} = Xmldoom::Object::Attribute->new( $data->{$col_name} );
-			if ( $column->{primary_key} )
+			if ( $column->is_primary_key() )
 			{
 				# we need to store the keys twice so that we can pivot
 				# on the key, if we need to change it.
@@ -246,7 +243,7 @@ sub new
 	else
 	{
 		# set our defaults
-		foreach my $column ( @{$self->{DEFINITION}->get_table()->get_columns()} )
+		foreach my $column ( @{$self->{definition}->get_table()->get_columns()} )
 		{
 			$self->{info}->{$column->{name}} = Xmldoom::Object::Attribute->new( $column->{default} );
 		}
@@ -255,20 +252,24 @@ sub new
 	# link our attributes to the appropriate connections in the parent
 	if ( $self->{parent} )
 	{
-		if ( not defined $parent_conns )
+		if ( not defined $parent_link )
 		{
 			# if they aren't specified then we guess...
-			$parent_conns = $self->{DEFINITION}->find_connections( $self->{parent}->_get_object_name() );
+			$parent_link = $self->{definition}->find_links( $self->{parent}->_get_object_name() )->[0];
 		}
 
-		foreach my $pconn ( @$parent_conns )
+		# TODO: a hack for inter_table where we won't have a parent link for now!
+		if ( defined $parent_link )
 		{
-			$self->_link_attr( $pconn->{local_column}, $self->{parent}, $pconn->{foreign_column} );
+			foreach my $pconn ( @{$parent_link->get_start()->get_column_names()} )
+			{
+				$self->_link_attr( $pconn->{local_column}, $self->{parent}, $pconn->{foreign_column} );
+			}
 		}
 	}
 
 	# setup the properties
-	foreach my $prop ( @{$self->{DEFINITION}->get_properties()} )
+	foreach my $prop ( @{$self->{definition}->get_properties()} )
 	{
 		push @{$self->{props}}, Xmldoom::Object::Property->new( $prop, $self );
 	}
@@ -289,21 +290,19 @@ sub copy
 	my $class = ref($self);
 	my $copy = $class->new();
 
-	foreach my $column ( @{$self->{DEFINITION}->get_table()->get_columns()} )
+	foreach my $name ( @{$self->{definition}->get_table()->get_column_names({ data_only => 1 })} )
 	{
-		if ( not $column->{primary_key} )
-		{
-			$copy->_set_attr( $column->{name}, $self->_get_attr($column->{name}) );
-		}
+		$copy->_set_attr( $name, $self->_get_attr($name) );
 	}
 
 	return $copy;
 }
 
-sub _get_definition  { return shift->{DEFINITION}; }
-sub _get_database    { return shift->{DEFINITION}->get_database(); }
-sub _get_object_name { return shift->{DEFINITION}->get_name(); }
+sub _get_definition  { return shift->{definition}; }
+sub _get_database    { return shift->{definition}->get_database(); }
+sub _get_object_name { return shift->{definition}->get_name(); }
 sub _get_properties  { return shift->{props}; }
+sub _get_original    { return shift->{original}; }
 sub _get_key         { return shift->{key}; }
 
 sub _get_attributes
@@ -333,11 +332,80 @@ sub _get_property
 	die "There is no property named '$name' on this object";
 }
 
+sub _get_property_recursive
+{
+	my ($self, $name) = @_;
+
+	my $object = $self;
+	my @stack  = split /\//, $name;
+	
+	# go through all the sub-properties
+	while ( @stack > 1 )
+	{
+		# get the next name
+		$name = shift @stack;
+
+		foreach my $prop ( @{$object->_get_properties()} )
+		{
+			if ( $prop->get_name() eq $name )
+			{
+				if ( not $prop->get_definition()->isa('Xmldoom::Definition::Property::Object') or 
+						 $prop->get_type() ne 'inherent' )
+				{
+					die "Cannot _get_property() recursively through '$name' because it is not an inherent object property.";
+				}
+
+				# recurse, yo!
+				$object = $prop->get();
+			}
+		}
+	}
+
+	# get the final property!
+	my $name = shift @stack;
+	my $prop = $object->_get_property($name);
+
+	# NOTE: we must return both the property and the object, because the property
+	# will cease to be valid as soon as the object goes out of scope.
+	return ( $object, $prop );
+}
+
+sub _get_property_value
+{
+	my $self = shift;
+	my $args = shift;
+
+	my $name;
+	my $pretty = 0;
+
+	if ( ref($args) eq 'HASH' )
+	{
+		$name   = $args->{name};
+		$pretty = $args->{pretty};
+	}
+	else
+	{
+		$name   = $args;
+		$pretty = shift;
+	}
+
+	my ($object, $prop) = $self->_get_property_recursive($name);
+
+	if ( $pretty )
+	{
+		return $prop->get_pretty();
+	}
+	else
+	{
+		return $prop->get();
+	}
+}
+
 sub _get_attr
 {
 	my ($self, $name) = @_;
 
-	my $col = $self->{DEFINITION}->get_table()->get_column( $name );
+	my $col = $self->{definition}->get_table()->get_column( $name );
 	if ( not defined $col )
 	{
 		die "Cannot get non-existant attribute \"$name\".";
@@ -350,7 +418,7 @@ sub _set_attr
 {
 	my ($self, $name, $value) = @_;
 
-	my $col = $self->{DEFINITION}->get_table()->get_column( $name );
+	my $col = $self->{definition}->get_table()->get_column( $name );
 	if ( not defined $col )
 	{
 		die "Cannot set non-existant attribute \"$name\".";
@@ -453,7 +521,7 @@ sub save
 
 	if ( not defined $conn )
 	{
-		$conn = $self->{DEFINITION}->create_db_connection();
+		$conn = $self->{definition}->create_db_connection();
 		$conn->begin();
 
 		# we are the connection owner (or, ALL YOUR CONNECTION ARE BELONG TO US)
@@ -517,7 +585,7 @@ sub do_save
 {
 	my ($self, $conn) = @_;
 
-	my $definition = $self->{DEFINITION};
+	my $definition = $self->{definition};
 	my $table      = $definition->get_table();
 	my $table_name = $definition->get_table_name();
 
@@ -530,16 +598,17 @@ sub do_save
 		$query = $definition->get_insert_query();
 		foreach my $column ( @{$table->get_columns()} )
 		{
-			my $col_name = $column->{name};
+			my $col_name = $column->get_name();
 
 			if ( $self->{info}->{$col_name}->is_local() and
 			     not defined $self->{info}->{$col_name}->get() )
 			{
 				# if the value is not defined, special behavior is required for
 				# some special types.
-				if ( $column->{primary_key} and ($column->{auto_increment} or $column->{id_generator}) )
+				if ( $column->is_primary_key() and 
+				    ($column->is_auto_increment or $column->get_id_generator()) )
 				{
-					if ( $column->{auto_increment} )
+					if ( $column->is_auto_increment() )
 					{
 						# use the default connection id generator
 						$id_gen->{$col_name} = $conn->create_id_generator();
@@ -547,10 +616,10 @@ sub do_save
 					else
 					{
 						# use the module, yo!
-						use_module($column->{id_generator});
+						use_module($column->get_id_generator());
 						
 						# use the custom id generator
-						$id_gen->{$col_name} = $column->{id_generator}->new({
+						$id_gen->{$col_name} = $column->get_id_generator()->new({
 							conn        => $conn,
 							object      => $self,
 							table_name  => $table_name,
@@ -579,7 +648,7 @@ sub do_save
 						$values->{$col_name} = DBIx::Romani::Query::SQL::Null->new();
 					}
 				}
-				elsif ( $column->{timestamp} )
+				elsif ( $column->get_timestamp() )
 				{
 					$values->{$col_name} = DBIx::Romani::Query::Function::Now->new();
 				}
@@ -601,15 +670,15 @@ sub do_save
 		$query = $definition->get_update_query();
 		foreach my $column ( @{$table->get_columns()} )
 		{
-			my $col_name = $column->{name};
+			my $col_name = $column->get_name();
 
 			# add the primary key
-			if ( $column->{primary_key} )
+			if ( $column->is_primary_key() )
 			{
 				$values->{"key.$col_name"} = DBIx::Romani::Query::SQL::Literal->new( $self->{key}->{$col_name} );
 			}
 
-			if ( $column->{timestamp} eq 'current' )
+			if ( $column->get_timestamp() eq 'current' )
 			{
 				$values->{$col_name} = DBIx::Romani::Query::Function::Now->new();
 			}
@@ -627,25 +696,20 @@ sub do_save
 
 	# copy from the info, into the key, either for a newly db'd object or
 	# for the primary key pivot.
-	foreach my $column ( @{$table->get_columns()} )
+	foreach my $col_name ( @{$table->get_column_names({ primary_key => 1 })} )
 	{
-		if ( $column->{primary_key} )
+		if ( defined $id_gen->{$col_name} )
 		{
-			my $col_name = $column->{name};
+			# we saved the id generator because its a get
+			# after insert.  So, get, now...
 
-			if ( defined $id_gen->{$col_name} )
-			{
-				# we saved the id generator because its a get
-				# after insert.  So, get, now...
-
-				my $id = $id_gen->{$col_name}->get_id();
-				$self->{key}->{$col_name}  = $id;
-				$self->{info}->{$col_name}->set( $id );
-			}
-			else
-			{
-				$self->{key}->{$col_name} = $self->{info}->{$col_name}->get();
-			}
+			my $id = $id_gen->{$col_name}->get_id();
+			$self->{key}->{$col_name}  = $id;
+			$self->{info}->{$col_name}->set( $id );
+		}
+		else
+		{
+			$self->{key}->{$col_name} = $self->{info}->{$col_name}->get();
 		}
 	}
 
@@ -682,18 +746,15 @@ sub delete
 
 	# TODO: cascading deletes are cool too...
 	
-	my $definition = $self->{DEFINITION};
+	my $definition = $self->{definition};
 	my $table      = $definition->get_table();
 	
 	my $query = $definition->get_delete_query();
 
 	my %values;
-	foreach my $column ( @{$table->get_columns()} )
+	foreach my $column ( @{$table->get_columns({ primary_key => 1 })} )
 	{
-		if ( $column->{primary_key} )
-		{
-			$values{$column->{name}} = DBIx::Romani::Query::SQL::Literal->new( $self->{key}->{$column->{name}} );
-		}
+		$values{$column->{name}} = DBIx::Romani::Query::SQL::Literal->new( $self->{key}->{$column->{name}} );
 	}
 
 	my $conn = $definition->create_db_connection();

@@ -95,6 +95,9 @@ sub startup : Test(startup)
 		</foreign-key>
 	</table>
 
+	<!-- to stop explosions -->
+	<table name="author"/>
+
 	<table name="publisher" description="Publisher Table">
 		<column
 			name="publisher_id"
@@ -112,6 +115,59 @@ sub startup : Test(startup)
 		/>
 	</table>
 
+	<table name="orders">
+		<column
+			name="order_id"
+			type="INTEGER"
+			required="true"
+			primaryKey="true"
+		/>
+		<column
+			name="date_opened"
+			type="DATETIME"
+			timestamp="created"
+			required="true"
+		/>
+		<column
+			name="date_shipped"
+			type="DATETIME"
+			required="false"
+		/>
+
+		<foreign-key foreignTable="books_ordered">
+			<reference
+				local="order_id"
+				foreign="order_id"
+			/>
+		</foreign-key>
+	</table>
+
+	<table name="books_ordered">
+		<column
+			name="order_id"
+			type="INTEGER"
+			primaryKey="true"
+		/>
+		<column
+			name="book_id"
+			type="INTEGER"
+			primaryKey="true"
+		/>
+		<column
+			name="quantity"
+			type="INTEGER"
+			required="true"
+			default="1"
+		/>
+
+		<foreign-key foreignTable="book">
+			<reference
+				local="book_id"
+				foreign="book_id"
+			/>
+		</foreign-key>
+	</table>
+
 </database>
 EOF
 
@@ -120,6 +176,9 @@ EOF
 
 <objects>
 	<object name="Fake.Book" table="book">
+		<property name="book_id">
+			<simple/>
+		</property>
 		<property
 			name="title"
 			description="Title">
@@ -144,6 +203,21 @@ EOF
 				<simple/>
 		</property>
 	</object>
+
+	<object name="Fake.Order" table="orders">
+		<property name="order_id">
+			<simple/>
+		</property>
+	</object>
+
+	<object name="Fake.BookOrdered" table="books_ordered">
+		<property name="book_id">
+			<simple/>
+		</property>
+		<property name="order_id">
+			<simple/>
+		</property>
+	</object>
 </objects>
 EOF
 
@@ -164,6 +238,22 @@ sub criteriaSimple1 : Test(1)
 	my $criteria = Xmldoom::Criteria->new();
 	$criteria->add_attr( "book/title", "Breakfast of Champions" );
 	my $query = $criteria->generate_query_for_object( $self->{database}, 'Fake.Book' );
+	my $sql = generate_sql( $query );
+
+	is( $sql, "SELECT book.book_id, book.title, book.isbn, book.price, book.publisher_id, book.author_id FROM book WHERE book.title = 'Breakfast of Champions'" );
+}
+
+sub criteriaSimpleClone1 : Test(1)
+{
+	my $self = shift;
+
+	# create the criteria
+	my $criteria = Xmldoom::Criteria->new();
+	$criteria->add_attr( "book/title", "Breakfast of Champions" );
+
+	# clone it and then generate the SQL
+	my $clone = $criteria->clone();
+	my $query = $clone->generate_query_for_object( $self->{database}, 'Fake.Book' );
 	my $sql = generate_sql( $query );
 
 	is( $sql, "SELECT book.book_id, book.title, book.isbn, book.price, book.publisher_id, book.author_id FROM book WHERE book.title = 'Breakfast of Champions'" );
@@ -861,6 +951,68 @@ EOF
 	my $sql      = generate_sql( $query );
 
 	is( $sql, "SELECT book.book_id, book.title, book.isbn, book.price, book.publisher_id, book.author_id FROM book GROUP BY book.publisher_id" );
+}
+
+sub criteriaJoinAttr : Test(1)
+{
+	my $self = shift;
+
+	my $xml = << "EOF";
+<?xml version="1.0"?>
+
+<criteria>
+	<constraints>
+		<attribute name="orders/order_id">
+			<equal>27</equal>
+		</attribute>
+		<join-attributes
+			name1="orders/order_id"
+			name2="books_ordered/order_id"
+		/>
+		<join-attributes
+			name1="books_ordered/book_id"
+			name2="book/book_id"
+		/>
+	</constraints>
+</criteria>
+EOF
+
+	my $criteria = parse($xml);
+	my $query    = $criteria->generate_query_for_object( $self->{database}, 'Fake.Book' );
+	my $sql      = generate_sql( $query );
+
+	is( $sql, "SELECT book.book_id, book.title, book.isbn, book.price, book.publisher_id, book.author_id FROM book, books_ordered, orders WHERE book.book_id = books_ordered.book_id AND books_ordered.order_id = orders.order_id AND (orders.order_id = '27' AND orders.order_id = books_ordered.order_id AND books_ordered.book_id = book.book_id)" ); 
+}
+
+sub criteriaJoinProp : Test(1)
+{
+	my $self = shift;
+
+	my $xml = << "EOF";
+<?xml version="1.0"?>
+
+<criteria>
+	<constraints>
+		<attribute name="orders/order_id">
+			<equal>27</equal>
+		</attribute>
+		<join-properties
+			name1="Fake.Order/order_id"
+			name2="Fake.BookOrdered/order_id"
+		/>
+		<join-properties
+			name1="Fake.BookOrdered/book_id"
+			name2="Fake.Book/book_id"
+		/>
+	</constraints>
+</criteria>
+EOF
+
+	my $criteria = parse($xml);
+	my $query    = $criteria->generate_query_for_object( $self->{database}, 'Fake.Book' );
+	my $sql      = generate_sql( $query );
+
+	is( $sql, "SELECT book.book_id, book.title, book.isbn, book.price, book.publisher_id, book.author_id FROM book, books_ordered, orders WHERE book.book_id = books_ordered.book_id AND books_ordered.order_id = orders.order_id AND (orders.order_id = '27' AND orders.order_id = books_ordered.order_id AND books_ordered.book_id = book.book_id)" ); 
 }
 
 sub criteriaGenDescription1 : Test(1)

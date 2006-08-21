@@ -807,5 +807,15 @@ sub testCopy : Test(2)
 	is( $book2->_get_attr('book_id'), 7 );
 }
 
+sub testGetPropertyValue : Test(1)
+{
+	my $self = shift;
+
+	my $book = example::BookStore::Book->load({ book_id => 1 });
+	my $value = $book->_get_property_value( 'publisher/name' );
+
+	is( $value, 'Lulu Press' );
+}
+
 1;
 

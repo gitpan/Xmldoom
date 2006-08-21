@@ -22,22 +22,24 @@ sub new
 	my $get_name;
 	my $options_prop;
 	my $options_criteria;
+	my $options_dependent;
 	my $inclusive;
 	my $inter_table;
 	my $key_attributes;
 
 	if ( ref($args) eq 'HASH' )
 	{
-		$parent           = $args->{parent};
-		$prop_name        = $args->{name};
-		$object_name      = $args->{object_name};
-		$set_name         = $args->{set_name};
-		$get_name         = $args->{get_name};
-		$options_prop     = $args->{options_property};
-		$options_criteria = $args->{options_criteria};
-		$inclusive        = $args->{inclusive};
-		$inter_table      = $args->{inter_table};
-		$key_attributes   = $args->{key_attributes};
+		$parent            = $args->{parent};
+		$prop_name         = $args->{name};
+		$object_name       = $args->{object_name};
+		$set_name          = $args->{set_name};
+		$get_name          = $args->{get_name};
+		$options_prop      = $args->{options_property};
+		$options_criteria  = $args->{options_criteria};
+		$options_dependent = $args->{options_dependent};
+		$inclusive         = $args->{inclusive};
+		$inter_table       = $args->{inter_table};
+		$key_attributes    = $args->{key_attributes};
 	}
 	else
 	{
@@ -51,8 +53,67 @@ sub new
 		};
 	}
 
+	# create ourself
+	my $self = $class->SUPER::new( $args );
+
+	#
+	# Find our link to the object
+	#
+
+	my $links = $parent->find_links( $object_name );
+	my $link;
+
+	if ( scalar @$links == 0 )
+	{
+		# TODO: Should be an error, yo!
+		#die $self->{name} . ": There is no link between " . $parent->get_name() . " and " . $object_name . ".  Did you forget to setup a foreign-key?";
+		print STDERR  "WARNING: " . $self->{name} . ": There is no link between " . $parent->get_name() . " and " . $object_name . ".  Did you forget to setup a foreign-key?\n";
+	}
+	elsif ( scalar @$links > 1 )
+	{
+		if ( not defined $key_attributes )
+		{
+			die $self->{name} . ": It is ambiguous which connection to the foreign object is intended in this property.  You must specify a <key/> section to your <object/> property.";
+		}
+		else
+		{
+			# TODO: choose the appropriate link.
+			foreach my $possible ( @$links )
+			{
+				if ( $possible->get_start()->is_local_column_names( $key_attributes ) )
+				{
+					$link = $possible;
+					last;
+				}
+			}
+
+			if ( not $link )
+			{
+				die "It is ambiguous which connection to the foreign object is intended in this property.  The <key/> section of this <object/> property is insufficient to disambiguate.";
+			}
+		}
+	}
+	else
+	{
+		if ( defined $key_attributes )
+		{
+			print STDERR "WARNING: Specifying a key attributes for this object property when it is not ambiguous!\n";
+		}
+
+		$link = $links->[0];
+	}
+
 	# we need to know how this object relates the other
-	my $rel_string = $parent->find_relationship( $object_name );
+	my $rel_string;
+	if ( defined $link )
+	{
+		$rel_string = $link->get_relationship();
+	}
+	else
+	{
+		# TODO: a hack for inter-table what not
+		$rel_string = "many-to-many";
+	}
 
 	# get the component parts
 	my @rel_parts;
@@ -74,94 +135,26 @@ sub new
 		$prop_type = "external";
 	}
 
-	my $self = $class->SUPER::new( $args );
+	# store all of our infos
 	$self->{object_name}       = $object_name;
+	$self->{options_prop}      = $options_prop;
+	$self->{options_criteria}  = $options_criteria;
+	$self->{options_dependent} = $options_dependent;
+	$self->{inclusive}         = $inclusive || 0;
+	$self->{inter_table}       = $inter_table;
+	$self->{link}              = $link;
+	$self->{prop_type}         = $prop_type;
 	$self->{set_name}          = $set_name;
 	$self->{get_name}          = $get_name;
 	$self->{relationship}      = \@rel_parts;
-	$self->{prop_type}         = $prop_type;
-	$self->{options_prop}      = $options_prop;
-	$self->{options_criteria}  = $options_criteria;
-	$self->{inclusive}         = $inclusive || 0;
-	$self->{inter_table}       = $inter_table;
-	#$self->{conns}             = [ ];
-
-	my $conns = $parent->find_connections( $object_name );
-
-	# loop through the conns looking for conflicts, ie. When a 
-	# foreign_table and foreign_column pair is used twice.  If so, and
-	# there are no key_attributes set, then complain.  Otherwise, compare
-	# the key_attributes against the local_table and local_column and choose
-	# those connections over the others.  If the key_attributes are set
-	# for no good reason, you should complain to.
-	my $foreign_columns = { };
-	my $ambiguous_key   = 0;
-
-	foreach my $conn ( @$conns )
-	{
-		if ( defined $foreign_columns->{$conn->{foreign_column}} )
-		{
-			push @{$foreign_columns->{$conn->{foreign_column}}}, $conn;
-			$ambiguous_key = 1;
-		}
-		else
-		{
-			$foreign_columns->{$conn->{foreign_column}} = [ $conn ];
-		}
-	}
-
-	if ( not $ambiguous_key )
-	{
-		if ( defined $key_attributes )
-		{
-			print STDERR "WARNING: Specifying a key attributes for this object property when it is not ambiguous!\n";
-		}
-
-		# if the key isn't ambiguous, then just use the connections
-		$self->{conns} = $conns;
-	}
-	elsif ( not defined $key_attributes )
-	{
-		die $self->{name} . ": It is ambiguous which connection to the foreign object is intended in this property.  You must specify a <key/> section to your <object/> property.";
-	}
-	else
-	{
-		$self->{conns} = [ ];
-
-		# now we build up the list of connections disambiguated.
-		conn_list: foreach my $conn_list ( values %$foreign_columns )
-		{
-			if ( scalar @$conn_list == 1 )
-			{
-				# this isn't one of the ambiguous connections, so just add it.
-				push @{$self->{conns}}, $conn_list->[0];
-			}
-			else
-			{
-				# attempt to disambiguate...
-				foreach my $conn ( @$conn_list )
-				{
-					foreach my $attr ( @$key_attributes )
-					{
-						if ( $conn->{local_column} eq $attr )
-						{
-							push @{$self->{conns}}, $conn;
-							next conn_list;
-						}
-					}
-				}
-
-				die "It is ambiguous which connection to the foreign object is intended in this property.  The <key/> section of this <object/> property is insufficient to disambiguate.";
-			}
-		}
-	}
 
 	bless  $self, $class;
 	return $self;
 }
 
-sub get_type          { return shift->{prop_type}; }
-sub get_object_name   { return shift->{object_name}; }
+sub get_type        { return shift->{prop_type}; }
+sub get_object_name { return shift->{object_name}; }
+sub get_link        { return shift->{link}; }
 
 sub get_autoload_get_list
 {
@@ -201,10 +194,12 @@ sub get_data_type
 	my $self = shift;
 	my $args = shift;
 
+	my $object;
 	my $include_options;
 
 	if ( ref($args) eq 'HASH' )
 	{
+		$object          = $args->{object};
 		$include_options = $args->{include_options};
 	}
 
@@ -216,33 +211,55 @@ sub get_data_type
 	# get the selectable options, baby.
 	if ( $self->{inclusive} and defined $self->{options_prop} and $include_options )
 	{
+		$value->{options} = $self->get_options($object);
+	}
+
+	return $value;
+}
+
+sub get_options
+{
+	my $self = shift;
+	my $object = shift;
+
+	my @options;
+	
+	if ( defined $self->{options_prop} )
+	{
 		my $criteria;
-		
+		my $parent;
+
+		# use this object as the parent, if the options are dependent on it.
+		if ( $self->{options_dependent} )
+		{
+			$parent = $object;
+		}
+
+		# use the options criteria if specified
 		if ( defined $self->{options_criteria} )
 		{
-			$criteria = $self->{options_criteria}->clone();
+			$criteria = $self->{options_criteria}->clone( $parent );
 		}
 		else
 		{
-			$criteria = Xmldoom::Criteria->new();
+			$criteria = Xmldoom::Criteria->new( $parent );
 		}
 
 		my $class = $self->get_object_class();
-		my @options;
 
 		my $rs = $class->SearchRS( $criteria );
 		while ( $rs->next() )
 		{
 			my $obj  = $rs->get_object();
-			my $prop = $obj->_get_property( $self->{options_prop} );
 
-			push @options, { value => $obj->_get_key(), description => $prop->get() };
+			push @options, {
+				value       => $obj->_get_key(),
+				description => $obj->_get_property_value( $self->{options_prop} )
+			};
 		}
-
-		$value->{options} = \@options;
 	}
 
-	return $value;
+	return \@options;
 }
 
 sub get
@@ -268,7 +285,7 @@ sub get
 			
 			# simply load the data
 			my $object_key = { };
-			foreach my $conn ( @{$self->{conns}} )
+			foreach my $conn ( @{$self->{link}->get_start()->get_column_names()} )
 			{
 				$object_key->{$conn->{foreign_column}} = $object->_get_attr($conn->{local_column});
 			}
@@ -276,9 +293,9 @@ sub get
 
 			# return the appropriate object
 			return $class->new(undef, {
-				data => $data,
-				parent => $object,
-				parent_conns => $self->{conns}
+				data        => $data,
+				parent      => $object,
+				parent_link => $self->{link}
 			});
 		}
 	}
@@ -332,8 +349,8 @@ sub get
 				my $object_table_name = $database->get_object( $self->{object_name} )->get_table_name();
 
 				# join the parent table to the inter-table
-				my $parent_conns = $database->find_connections( $parent_table_name, $self->{inter_table} );
-				foreach my $conn ( @$parent_conns )
+				my $parent_link = $database->find_links( $parent_table_name, $self->{inter_table} )->[0];
+				foreach my $conn ( @{$parent_link->get_start()->get_column_names()} )
 				{
 					$criteria->join_attr(
 						sprintf("%s/%s", $conn->{local_table},   $conn->{local_column}),
@@ -344,8 +361,8 @@ sub get
 				}
 
 				# join the inter-table to the object table
-				my $object_conns = $database->find_connections( $self->{inter_table}, $object_table_name );
-				foreach my $conn ( @$object_conns )
+				my $object_link = $database->find_links( $self->{inter_table}, $object_table_name )->[0];
+				foreach my $conn ( @{$object_link->get_start()->get_column_names()} )
 				{
 					$criteria->join_attr(
 						sprintf("%s/%s", $conn->{local_table},   $conn->{local_column}),
@@ -383,7 +400,7 @@ sub set
 		my $value = $args;
 
 		# link the attributes of the value to ours
-		foreach my $conn ( @{$self->{conns}} )
+		foreach my $conn ( @{$self->{link}->get_start()->get_column_names()} )
 		{
 			$object->_link_attr( $conn->{local_column}, $value, $conn->{foreign_column} );
 		}
@@ -446,7 +463,7 @@ sub get_query_lval
 	my $self = shift;
 
 	my @ret;
-	foreach my $conn ( @{$self->{conns}} )
+	foreach my $conn ( @{$self->{link}->get_start()->get_column_names()} )
 	{
 		push @ret, DBIx::Romani::Query::SQL::Column->new( $conn->{local_table}, $conn->{local_column} );
 	}
@@ -459,7 +476,7 @@ sub get_query_rval
 	my ($self, $value) = @_;
 
 	my @ret;
-	foreach my $conn ( @{$self->{conns}} )
+	foreach my $conn ( @{$self->{link}->get_start()->get_column_names()} )
 	{
 		push @ret, DBIx::Romani::Query::SQL::Literal->new( $value->_get_attr($conn->{foreign_column}) );
 	}

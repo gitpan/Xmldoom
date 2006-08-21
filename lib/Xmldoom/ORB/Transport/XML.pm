@@ -58,5 +58,18 @@ sub write_object_list
 	$xml->end();
 }
 
+sub write_count
+{
+	my ($self, $count) = (shift, shift);
+
+	my $xml = XML::Writer->new();
+
+	$xml->startTag('count');
+	$xml->characters($count);
+	$xml->endTag('count');
+
+	$xml->xml();
+}
+
 1;
 

@@ -16,6 +16,7 @@ sub new
 	my $hints;
 	my $reportable = 1;
 	my $searchable = 1;
+	my $shared = 0;
 
 	if ( ref($args) eq 'HASH' )
 	{
@@ -25,6 +26,7 @@ sub new
 		$hints       = $args->{hints};
 		$reportable  = $args->{reportable} if defined $args->{reportable};
 		$searchable  = $args->{searchable} if defined $args->{searchable};
+		$shared      = $args->{shared}     if defined $args->{shared};
 	}
 	else
 	{
@@ -40,6 +42,11 @@ sub new
 		reportable  => $reportable  || 0,
 		searchable  => $searchable  || 0,
 	};
+	bless $self, $class;
+
+	# we have to do this before any weak references are manipulated
+	# because copies of weak references are strong references.
+	$self = Xmldoom::Threads::make_shared($self, $shared);
 
 	# weaken reference to parent
 	if ( defined $self->{parent} )
@@ -47,7 +54,6 @@ sub new
 		weaken( $self->{parent} );
 	}
 
-	bless  $self, $class;
 	return $self;
 }
 

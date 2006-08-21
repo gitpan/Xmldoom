@@ -2,6 +2,7 @@
 dojo.provide('Xmldoom.Connection');
 dojo.provide('Xmldoom.priv');
 
+dojo.require('dojo.lang');
 dojo.require('dojo.json');
 dojo.require('dojo.io.*');
 
@@ -13,7 +14,19 @@ dojo.declare('Xmldoom.priv.JSONTransport', null,
 	},
 	parseObjectList: function (result)
 	{
-		return dojo.json.evalJson(result);
+		var data = dojo.json.evalJson(result);
+
+		if ( data && dojo.lang.isUndefined(data.count) )
+		{
+			data = data.result;
+		}
+
+		return data;
+	},
+	parseCount: function (result)
+	{
+		var data = dojo.json.evalJson(result);
+		return data.count;
 	}
 });
 
@@ -113,6 +126,21 @@ dojo.declare('Xmldoom.priv.XMLTransport', null,
 		}
 
 		return list;
+	},
+
+	parseCount: function (result)
+	{
+		alert("Xmldoom.priv.XMLTransport.parseCount(): Unimplemented!");
+		return null;
+		
+		var doc  = dojo.dom.createDocumentFromText(result);
+		var root = doc.documentElement;
+
+		var count = null;
+
+		if ( root.tagName == 'count' )
+		{
+		}
 	}
 });
 
@@ -158,7 +186,7 @@ dojo.declare('Xmldoom.Connection', null,
 		return this.transport.parseObject(result);
 	},
 
-	search: function (xmldoomType, criteria, callback)
+	search: function (xmldoomType, criteria, callback, includeCount)
 	{
 		var self   = this;
 		var result = null;
@@ -188,8 +216,14 @@ dojo.declare('Xmldoom.Connection', null,
 			sync = true;
 		}
 
+		var operation = "/search";
+		if ( includeCount )
+		{
+			operation = operation + "?includeCount=1";
+		}
+
 		dojo.io.bind({
-			url:         this.baseUrl + xmldoomType + "/search",
+			url:         this.baseUrl + xmldoomType + operation,
 			method:      'post',
 			postContent: criteria.xml(),
 			load:        onload,
@@ -202,6 +236,25 @@ dojo.declare('Xmldoom.Connection', null,
 			return null;
 
 		return this.transport.parseObjectList(result);
+	},
+
+	count: function (xmldoomType, criteria)
+	{
+		var result = null;
+
+		dojo.io.bind({
+			url:         this.baseUrl + xmldoomType + "/count",
+			method:      'post',
+			postContent: criteria.xml(),
+			load:        function (type, data, evt) { result = data; },
+			mimetype:    "text/plain",
+			sync:        true
+		});
+
+		if ( !result )
+			return null;
+
+		return this.transport.parseCount(result);
 	}
 });
 

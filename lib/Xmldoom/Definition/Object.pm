@@ -1,6 +1,7 @@
 
 package Xmldoom::Definition::Object;
 
+use Xmldoom::Threads;
 use Exception::Class::TryCatch;
 use DBIx::Romani::Query::Select;
 use DBIx::Romani::Query::Insert;
@@ -24,12 +25,14 @@ sub new
 	my $database;
 	my $object_name;
 	my $table_name;
+	my $shared = 0;
 	
 	if ( ref($args) eq 'HASH' )
 	{
 		$database    = $args->{definition};
 		$object_name = $args->{object_name};
 		$table_name  = $args->{table_name};
+		$shared      = $args->{shared};
 	}
 	else
 	{
@@ -61,7 +64,7 @@ sub new
 	};
 
 	bless  $self, $class;
-	return $self;
+	return Xmldoom::Threads::make_shared($self, $shared);
 }
 
 sub get_database   { return shift->{database}; }
@@ -136,6 +139,14 @@ sub add_property
 
 	# TODO: make sure that this property will actually work, ie. are there
 	# any autoload name conflicts.
+
+	# poses problems for running in shared memory because conceivably
+	# the object definition could be shared and the property not, which will
+	# cause it to be copied and be a different object than what was passed in.
+	if ( Xmldoom::Threads::is_shared($self) and not Xmldoom::Threads::is_shared($prop) )
+	{
+		die "Cannot add a non-shared memory proproperty to a shared memory object definition";
+	}
 
 	if ( $self->has_property( $prop->get_name() ) )
 	{
@@ -320,25 +331,14 @@ sub get_delete_query
 }
 
 # A convenience function
-sub find_connections
+sub find_links
 {
 	my ($self, $object_name) = @_;
 
 	my $database = $self->get_database();
 	my $object   = $database->get_object( $object_name );
 
-	return $database->find_connections( $self->get_table_name(), $object->get_table_name() );
-}
-
-# A convenience function
-sub find_relationship
-{
-	my ($self, $object_name) = @_;
-
-	my $database = $self->get_database();
-	my $object   = $database->get_object( $object_name );
-
-	return $database->find_relationship( $self->get_table_name(), $object->get_table_name() );
+	return $database->find_links( $self->get_table_name(), $object->get_table_name() );
 }
 
 # A convenience function

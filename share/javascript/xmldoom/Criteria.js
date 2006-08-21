@@ -20,7 +20,7 @@ dojo.declare('Xmldoom.Criteria', null,
 		if ( dojo.lang.isString( arg ) )
 		{
 			// read from an XML string
-			this.doc = dojo.dom.createDocumentFromText(xml);
+			this.doc = dojo.dom.createDocumentFromText(arg);
 			this.order_by_node = this.doc.getElementsByTagName('order-by').item(0);
 			cons_node = this.doc.getElementsByTagName('constraints').item(0);
 		}
@@ -91,6 +91,14 @@ dojo.declare('Xmldoom.Criteria', null,
 		// the real work...
 		return dojo.dom.innerXML(this.getNode());
 	},
+	clone: function ()
+	{
+		// DRS: This is the biggest hack ever!  Instead of doing something sane, we
+		// are going to serialize to xml and then re-parse to create the copy.
+
+		return new Xmldoom.Criteria( this.xml() );
+		//return new Xmldoom.Criteria( '<criteria><constraints/></criteria>' );
+	},
 
 	//
 	// Actual member functions
@@ -101,6 +109,18 @@ dojo.declare('Xmldoom.Criteria', null,
 
 	add_prop:   function (a1, a2, a3) { this.search.add_prop(a1, a2, a3); },
 	add:        function (a1, a2, a3) { this.add_prop(a1, a2, a3); },
+
+	set_limit: function (limit, offset)
+	{
+		if ( !dojo.lang.isUndefined(limit) )
+		{
+			this.getNode().setAttribute('limit', limit);
+		}
+		if ( !dojo.lang.isUndefined(offset) )
+		{
+			this.getNode().setAttribute('offset', offset);
+		}
+	},
 
 	add_order_by: function (name, dir)
 	{

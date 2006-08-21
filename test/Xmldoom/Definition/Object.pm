@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-package Local::Xmldoom::Definition;
+package Local::Xmldoom::Definition::Object;
 use base qw(Test::Class);
 
 use Xmldoom::Definition::Database;
@@ -76,6 +76,10 @@ sub startup : Test(startup)
 		</foreign-key>
 	</table>
 
+	<!-- to stop explosions -->
+	<table name="publisher"/>
+	<table name="author"/>
+
 	<table name="test">
 		<column
 			name="test_id"
@@ -87,8 +91,12 @@ sub startup : Test(startup)
 			name="active"
 			type="ENUM"
 			required="true"
-			default="Y"
-		/>
+			default="Y">
+			<options>
+				<option>Y</option>
+				<option>N</option>
+			</options>
+		</column>
 	</table>
 </database>
 EOF
@@ -136,9 +144,10 @@ EOF
 </objects>
 EOF
 
-	my $database = Xmldoom::Definition::parse_database_string( $database_xml );
-
-	Xmldoom::Definition::parse_object_string( $database, $object_xml );
+	my $database;
+	
+	$database = Xmldoom::Definition::parse_database_string( $database_xml );
+	$database->parse_object_string( $object_xml );
 
 	my $book_object = $database->get_object( 'Fake.Book' );
 	my $test_object = $database->get_object( 'Fake.Test' );
@@ -218,6 +227,10 @@ sub objectDeleteQuery : Test(1)
 
 	is( $sql, "DELETE FROM book WHERE book_id = '123'" );
 }
+
+#
+# TODO: The following two tests don't necessarily belong here!
+#
 
 sub objectPropertiesExtra : Test(6)
 {

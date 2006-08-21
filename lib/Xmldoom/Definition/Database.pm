@@ -3,7 +3,12 @@ package Xmldoom::Definition::Database;
 
 use Xmldoom::Definition::Table;
 use Xmldoom::Definition::Object;
+use Xmldoom::Definition::SAXHandler;
+use Xmldoom::Definition::LinkTree;
+use Xmldoom::Definition::Link;
+use Xmldoom::Threads;
 use Exception::Class::TryCatch;
+use XML::SAX::ParserFactory;
 use strict;
 
 use Data::Dumper;
@@ -13,34 +18,54 @@ sub new
 	my $class = shift;
 	my $args  = shift;
 
+	my $schema;
+
+	if ( ref($args) eq 'HASH' )
+	{
+		$schema = $args->{schema};
+	}
+	else
+	{
+		$schema = $args;
+	}
+
 	my $self = {
-		tables  => { },
-		objects => { },
+		schema             => $schema,
+		objects            => { },
+
+		real_links         => Xmldoom::Definition::LinkTree->new(),
+		inferred_links     => Xmldoom::Definition::LinkTree->new(),
+		many_to_many_links => Xmldoom::Definition::LinkTree->new(),
+		
 		connection_factory => undef,
 	};
 
+	# go through and add all of the real links from the schema
+	while ( my ($table_name, $table) = each %{$self->{schema}->get_tables()} )
+	{
+		foreach my $fkey ( @{$table->get_foreign_keys()} )
+		{
+			$self->{real_links}->add_link( Xmldoom::Definition::Link->new($fkey) );
+		}
+	}
+
 	bless  $self, $class;
-	return $self;
+	return Xmldoom::Threads::make_shared($self, $args->{shared});
 }
 
 sub get_connection_factory { return shift->{connection_factory}; }
+sub get_schema             { return shift->{schema}; }
 
-sub get_tables { return shift->{tables}; }
+sub get_tables { return shift->{schema}->get_tables; }
 sub get_table
 {
 	my ($self, $name) = @_;
-
-	if ( not defined $self->{tables}->{$name} )
-	{
-		die "Unknown table named '$name'";
-	}
-
-	return $self->{tables}->{$name};
+	return $self->{schema}->get_table($name);
 }
 sub has_table
 {
 	my ($self, $name) = @_;
-	return defined $self->{tables}->{$name};
+	return $self->{schema}->has_table($name);
 }
 
 sub get_objects { return shift->{objects}; }
@@ -72,20 +97,6 @@ sub create_db_connection
 	return shift->get_connection_factory()->create();
 }
 
-sub create_table
-{
-	my ($self, $name) = @_;
-
-	if ( exists $self->{tables}->{$name} )
-	{
-		die "Table name \"$name\" already exists";
-	}
-
-	my $table = Xmldoom::Definition::Table->new();
-	$self->{tables}->{$name} = $table;
-	return $table;
-}
-
 sub create_object
 {
 	my ($self, $object_name, $table_name) = @_;
@@ -96,134 +107,65 @@ sub create_object
 	}
 
 	# add and return the object definition
-	my $object = Xmldoom::Definition::Object->new( $self, $object_name, $table_name );
+	my $object = Xmldoom::Definition::Object->new({
+		definition  => $self,
+		object_name => $object_name,
+		table_name  => $table_name,
+		shared      => Xmldoom::Threads::is_shared($self)
+	});
 	$self->{objects}->{$object_name} = $object;
 	return $object;
 }
 
-sub find_connections
+sub find_links
 {
 	my ($self, $table1_name, $table2_name) = @_;
 
-	my $table1 = $self->get_table( $table1_name );
-	my $table2 = $self->get_table( $table2_name );
-
-	if ( not defined $table1 or not defined $table2 )
+	if ( not $self->has_table($table1_name) or not $self->has_table($table2_name) )
 	{
 		die "Cannot find connections between one or more non-existant tables";
 	}
 
-	my @conns;
-
-	# go through all foreign-keys, looks for connections between these two tables
-	foreach my $conn ( @{$table1->find_connections( $table2_name )} )
+	my $links = $self->{real_links}->get_links($table1_name, $table2_name);
+	if ( defined $links )
 	{
-		# add the local table for reference...
-		my $c = { %$conn, local_table => $table1_name };
-		push @conns, $c;
-	}
-	conn: foreach my $conn ( @{$table2->find_connections( $table1_name )} )
-	{
-		# we have to switch everything to relate from the first table
-		my $c = {
-			local_table    => $conn->{foreign_table},
-			local_column   => $conn->{foreign_column},
-			foreign_table  => $table2_name,
-			foreign_column => $conn->{local_column},
-		};
-
-		# make sure there aren't any duplicates.
-		foreach my $other ( @conns )
-		{
-			if ( $c->{local_table}    eq $other->{local_table} and
-			     $c->{local_column}   eq $other->{local_column} and
-				 $c->{foreign_table}  eq $other->{foreign_table} and
-				 $c->{foreign_column} eq $other->{foreign_column} )
-			{
-				# skip to the next one, because this is a duplicate.
-				next conn;
-			}
-		}
-
-		push @conns, $c;
+		return $links;
 	}
 
-	return \@conns;
+	# TODO: check inferred links
+	# TODO: check many-to-many links
+
+	return [];
 }
 
-sub find_relationship
+sub parse_object_string
 {
-	my ($self, $table1_name, $table2_name) = @_;
+	my ($self, $input) = @_;
 
-	my $table1 = $self->get_table( $table1_name );
-	my $table2 = $self->get_table( $table2_name );
+	# build the parser
+	my $handler = Xmldoom::Definition::SAXHandler->new( $self );
+	my $parser = XML::SAX::ParserFactory->parser(Handler => $handler);
 
-	my $conns = $self->find_connections( $table1_name, $table2_name );
-	
-	my $local_primary   = 1;
-	my $foreign_primary = 1;
+	# phase 1 -- Create the objects and attach to respective tables
+	$parser->parse_string($input);
 
-	# this has to loop over all the columns in the table, to make sure that
-	# we only say that the connection is a primary key, if it includes ALL
-	# of the primary keys.  Other keys can be included too.
-	foreach my $column ( @{$table1->get_columns()} )
-	{
-		if ( $column->{primary_key} )
-		{
-			my $is_conn = 0;
-			foreach my $conn ( @$conns )
-			{
-				if ( $conn->{local_column} eq $column->{name} )
-				{
-					$is_conn = 1;
-					last;
-				}
-			}
-			if ( not $is_conn )
-			{
-				$local_primary = 0;
-				last;
-			}
-		}
-	}
-	# ... and the foreign table
-	foreach my $column ( @{$table2->get_columns()} )
-	{
-		if ( $column->{primary_key} )
-		{
-			my $is_conn = 0;
-			foreach my $conn ( @$conns )
-			{
-				if ( $conn->{foreign_column} eq $column->{name} )
-				{
-					$is_conn = 1;
-					last;
-				}
-			}
-			if ( not $is_conn )
-			{
-				$foreign_primary = 0;
-				last;
-			}
-		}
-	}
+	# phase 2 -- Actually add all the properties to the objects
+	$parser->parse_string($input);
+}
 
-	if ( not $local_primary and $foreign_primary )
-	{
-		return "many-to-one";
-	}
-	elsif ( $local_primary and not $foreign_primary )
-	{
-		return "one-to-many";
-	}
-	elsif ( $local_primary and $foreign_primary )
-	{
-		return "one-to-one";
-	}
-	else
-	{
-		return "many-to-many";
-	}
+sub parse_object_uri
+{
+	my ($self, $uri) = @_;
+
+	# build the parser
+	my $handler = Xmldoom::Definition::SAXHandler->new( $self );
+	my $parser = XML::SAX::ParserFactory->parser(Handler => $handler);
+
+	# phase 1 -- Create the objects and attach to respective tables
+	$parser->parse_uri($uri);
+
+	# phase 2 -- Actually add all the properties to the objects
+	$parser->parse_uri($uri);
 }
 
 sub SearchRS
