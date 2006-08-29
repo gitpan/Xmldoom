@@ -14,6 +14,7 @@ use Xmldoom::Criteria::Property;
 use Xmldoom::Criteria::XML;
 use XML::GDOME;
 use Test::More;
+use Test::Exception;
 use strict;
 
 use Data::Dumper;
@@ -168,6 +169,50 @@ sub startup : Test(startup)
 		</foreign-key>
 	</table>
 
+	<table name="test1">
+		<column
+			name="id"
+			type="INTEGER"
+			primary_key="true"
+		/>
+		<column
+			name="other_id1"
+			type="INTEGER"
+			required="true"
+		/>
+		<column
+			name="other_id2"
+			type="INTEGER"
+			required="true"
+		/>
+
+		<foreign-key foreignTable="test2">
+			<reference
+				local="other_id1"
+				foreign="id"
+			/>
+		</foreign-key>
+		<foreign-key foreignTable="test2">
+			<reference
+				local="other_id2"
+				foreign="id"
+			/>
+		</foreign-key>
+	</table>
+
+	<table name="test2">
+		<column
+			name="id"
+			type="INTEGER"
+			primary_key="true"
+		/>
+		<column
+			name="data"
+			type="VARCHAR"
+			size="50"
+			required="true"
+		/>
+	</table>
 </database>
 EOF
 
@@ -981,7 +1026,8 @@ EOF
 	my $query    = $criteria->generate_query_for_object( $self->{database}, 'Fake.Book' );
 	my $sql      = generate_sql( $query );
 
-	is( $sql, "SELECT book.book_id, book.title, book.isbn, book.price, book.publisher_id, book.author_id FROM book, books_ordered, orders WHERE book.book_id = books_ordered.book_id AND books_ordered.order_id = orders.order_id AND (orders.order_id = '27' AND orders.order_id = books_ordered.order_id AND books_ordered.book_id = book.book_id)" ); 
+	#is( $sql, "SELECT book.book_id, book.title, book.isbn, book.price, book.publisher_id, book.author_id FROM book, books_ordered, orders WHERE book.book_id = books_ordered.book_id AND books_ordered.order_id = orders.order_id AND book.book_id = books_ordered.book_id AND (orders.order_id = '27' AND orders.order_id = books_ordered.order_id AND books_ordered.book_id = book.book_id)" ); 
+	is( $sql, "SELECT book.book_id, book.title, book.isbn, book.price, book.publisher_id, book.author_id FROM book, books_ordered, orders WHERE orders.order_id = '27' AND orders.order_id = books_ordered.order_id AND books_ordered.book_id = book.book_id" ); 
 }
 
 sub criteriaJoinProp : Test(1)
@@ -1012,7 +1058,7 @@ EOF
 	my $query    = $criteria->generate_query_for_object( $self->{database}, 'Fake.Book' );
 	my $sql      = generate_sql( $query );
 
-	is( $sql, "SELECT book.book_id, book.title, book.isbn, book.price, book.publisher_id, book.author_id FROM book, books_ordered, orders WHERE book.book_id = books_ordered.book_id AND books_ordered.order_id = orders.order_id AND (orders.order_id = '27' AND orders.order_id = books_ordered.order_id AND books_ordered.book_id = book.book_id)" ); 
+	is( $sql, "SELECT book.book_id, book.title, book.isbn, book.price, book.publisher_id, book.author_id FROM book, books_ordered, orders WHERE orders.order_id = '27' AND orders.order_id = books_ordered.order_id AND books_ordered.book_id = book.book_id" ); 
 }
 
 sub criteriaGenDescription1 : Test(1)
@@ -1044,6 +1090,62 @@ EOF
 	my $description = $criteria->generate_description( $self->{database}, 'Fake.Book' );
 
 	is( $description, "ISBN begins with 123 but doesn't end with ABC, and Title is Dune but isn't Chapterhouse");
+}
+
+sub criteriaDualLink1 : Test(1)
+{
+	my $self = shift;
+
+	my $criteria = Xmldoom::Criteria->new();
+	$criteria->add_attr( 'test2/value', 'blah' );
+
+	dies_ok
+	{
+		# should throw an exception because it is ambiguous how to connect test1 and test2
+		# with two seperate foreign-keys connecting them.
+		$criteria->generate_query_for_attrs( $self->{database}, 'test1/id' );
+	};
+}
+
+sub criteriaDualLink2 : Test(1)
+{
+	my $self = shift;
+
+	my $criteria = Xmldoom::Criteria->new();
+	$criteria->join_attr( 'test1/other_id1', 'test2/id' );
+	$criteria->add_attr( 'test2/value', 'blah' );
+
+	my $query = $criteria->generate_query_for_attrs( $self->{database}, 'test1/id' );
+	my $sql   = generate_sql( $query );
+
+	is( $sql, "SELECT test1.id FROM test1, test2 WHERE test1.other_id1 = test2.id AND test2.value = 'blah'" );
+}
+
+sub criteriaManyToMany1 : Test(1)
+{
+	my $self = shift;
+
+	my $criteria = Xmldoom::Criteria->new();
+	$criteria->add_attr( 'orders/order_id', '27' );
+
+	my $query = $criteria->generate_query_for_object( $self->{database}, 'Fake.Book' );
+	my $sql   = generate_sql( $query );
+
+	is( $sql, "SELECT book.book_id, book.title, book.isbn, book.price, book.publisher_id, book.author_id FROM book, orders, books_ordered WHERE books_ordered.order_id = orders.order_id AND book.book_id = books_ordered.book_id AND orders.order_id = '27'" ); 
+}
+
+sub criteriaManyToMany2 : Test(1)
+{
+	my $self = shift;
+
+	my $criteria = Xmldoom::Criteria->new();
+	$criteria->add_attr( 'orders/order_id', '27' );
+	$criteria->add_order_by_attr( 'books_ordered/quantity' );
+
+	my $query = $criteria->generate_query_for_object( $self->{database}, 'Fake.Book' );
+	my $sql   = generate_sql( $query );
+
+	is( $sql, "SELECT book.book_id, book.title, book.isbn, book.price, book.publisher_id, book.author_id FROM book, orders, books_ordered WHERE book.book_id = books_ordered.book_id AND books_ordered.order_id = orders.order_id AND orders.order_id = '27' ORDER BY books_ordered.quantity ASC" ); 
 }
 
 1;

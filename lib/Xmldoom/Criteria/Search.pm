@@ -154,17 +154,49 @@ sub join_prop
 	);
 }
 
-sub get_search_query
+sub get_tables
 {
 	my ($self, $database) = @_;
 
-	my $where = DBIx::Romani::Query::Where->new( $self->get_type() );
+	my $table_hash = { };
 
 	foreach my $comp ( @{$self->get_comparisons()} )
 	{
-		$where->add( $comp->get_search_query($database) );
+		foreach my $table_name ( @{$comp->get_tables($database)} )
+		{
+			$table_hash->{$table_name} = 1;
+		}
 	}
 
+	my @table_names = keys %$table_hash;
+
+	return \@table_names;
+}
+
+sub generate
+{
+	my $self = shift;
+	my $args = shift;
+
+	my $database;
+
+	if ( ref($args) eq 'HASH' )
+	{
+		$database = $args->{database};
+	}
+	else
+	{
+		$database = $args;
+	}
+
+	# actually make the where statment
+	my $where = DBIx::Romani::Query::Where->new( $self->get_type() );
+	foreach my $comp ( @{$self->get_comparisons()} )
+	{
+		$where->add( $comp->generate($database) );
+	}
+
+	# reduce it if possible.
 	if ( scalar @{$where->get_values()} == 1 )
 	{
 		# if there is only one, then return only that
@@ -177,141 +209,6 @@ sub get_search_query
 	}
 
 	return $where;
-}
-
-sub get_conn_query
-{
-	my ($self, $database, $tables) = @_;
-
-	my $where = DBIx::Romani::Query::Where->new();
-
-	#print STDERR Dumper $tables;
-
-	# connect to the connect tables
-	foreach my $table_name ( @$tables )
-	{
-		# skip attempting to join the first table
-		if ( $table_name eq $tables->[0] )
-		{
-			next;
-		}
-
-		# find a connection to one of the other tables
-		my $link;
-		foreach my $foreign_table_name ( @$tables )
-		{
-			my $links = $database->find_links( $table_name, $foreign_table_name );
-
-			# TODO: deal with multiple links to the same table!
-
-			# break if found
-			if ( scalar @$links > 0 )
-			{
-				$link = $links->[0];
-				last;
-			}
-		}
-
-		if ( not defined $link )
-		{
-			print STDERR "** Unable to automatically join '$table_name' to any other tables in our search!\n";
-			print STDERR "** 99\% of the time, this is an ERROR!  However, that 1\% must still work!\n";
-			print STDERR "** FIX ME! FIX ME! FIX ME!  Xmldoom::Criteria::Search needs some love!\n";
-
-			#die "Unable to join $table_name to any other tables in our search";
-		}
-		else
-		{
-			# join the two tables
-			foreach my $conn ( @{$link->get_start()->get_column_names()} )
-			{
-				my $join = DBIx::Romani::Query::Comparison->new();
-
-				# NOTE: We do this in reverse than expected order because we looping
-				# essentially backwards.  The first item on the list of foriegn tables
-				# is thought to be our master table...
-
-				$join->add( DBIx::Romani::Query::SQL::Column->new( $conn->{foreign_table}, $conn->{foreign_column} ) );
-				$join->add( DBIx::Romani::Query::SQL::Column->new( $conn->{local_table}, $conn->{local_column} ) );
-				$where->add( $join );
-			}
-		}
-	}
-
-	if ( scalar @{$where->get_values()} == 0 )
-	{
-		# no connections required
-		return undef;
-	}
-
-	return $where;
-}
-
-sub get_tables
-{
-	my ($self, $database, $conn_tables, $from_tables) = @_;
-
-	foreach my $comp ( @{$self->get_comparisons()} )
-	{
-		$comp->get_tables( $database, $conn_tables, $from_tables );
-	}
-}
-
-# NOTE: this should never be called without a 'tables' argument!  The first
-# table passed to it should be the 'main table'.  If just grabbing attributes
-# then pass all the tables that data is being grabbed from.
-sub generate
-{
-	my $self = shift;
-	my $args = shift;
-
-	my $database;
-	my $tables;
-
-	if ( ref($args) eq 'HASH' )
-	{
-		$database = $args->{database};
-		$tables   = $args->{tables};
-	}
-	else
-	{
-		$database = $args;
-		$tables   = shift;
-	}
-
-	if ( ref($tables) ne 'ARRAY' )
-	{
-		$tables = [ $tables ];
-	}
-
-	my %conn_hash;
-	my %from_hash;
-
-	# put all the "extra" tables onto the from list, as they will be
-	# manually connected.
-	for ( my $i = 1; $i < scalar @$tables; $i++ )
-	{
-		$from_hash{$tables->[$i]} = 1;
-	}
-
-	# discover and append the other tables on the query onto our list
-	$self->get_tables( $database, \%conn_hash, \%from_hash );
-
-	# make sure that all the main tables are not included in the connection list, because
-	# we are going to re-add them at the front of the array.
-	foreach my $table_name ( @$tables )
-	{
-		delete $conn_hash{$table_name};
-	}
-
-	# tie it all together in one nifty little package
-	my $result = {
-		from_tables  => [ keys %from_hash ],
-		search_where => $self->get_search_query( $database ),
-		conn_where   => $self->get_conn_query( $database, [ @$tables, keys %conn_hash ] )
-	};
-
-	return $result;
 }
 
 sub generate_description

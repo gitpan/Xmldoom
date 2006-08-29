@@ -1,6 +1,6 @@
 
 package Xmldoom::Definition::SAXHandler;
-use base qw(XML::SAX::Base);
+use base qw(XML::SAX::Base Exporter);
 
 use Xmldoom::Definition::Property::Simple;
 use Xmldoom::Definition::Property::Object;
@@ -13,6 +13,8 @@ use Module::Runtime qw(use_module);
 use strict;
 
 use Data::Dumper;
+
+our @EXPORT_OK = qw( $OBJECT_NS $OBJECT_PERL_NS );
 
 our $OBJECT_NS      = "http://gna.org/projects/xmldoom/object";
 our $OBJECT_PERL_NS = "http://gna.org/projects/xmldoom/object-perl";

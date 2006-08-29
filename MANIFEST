@@ -4,11 +4,12 @@ example/BookStore/Author.pm
 example/BookStore/Book.pm
 example/BookStore/BookAgeProperty.pm
 example/BookStore/BooksOrdered.pm
+example/BookStore/database.xml
 example/BookStore/Object.pm
+example/BookStore/objects.xml
 example/BookStore/Order.pm
 example/BookStore/Publisher.pm
 example/BookStore/PublisherIdGenerator.pm
-example/BookStore/Test1.pm
 inc/Module/Install.pm
 inc/Module/Install/Base.pm
 inc/Module/Install/Can.pm
@@ -29,6 +30,7 @@ lib/Xmldoom.pm
 lib/Xmldoom/Criteria.pm
 lib/Xmldoom/Criteria/Attribute.pm
 lib/Xmldoom/Criteria/Comparison.pm
+lib/Xmldoom/Criteria/ExplicitJoinVisitor.pm
 lib/Xmldoom/Criteria/Literal.pm
 lib/Xmldoom/Criteria/Property.pm
 lib/Xmldoom/Criteria/Search.pm
@@ -39,6 +41,7 @@ lib/Xmldoom/Definition/Database.pm
 lib/Xmldoom/Definition/Link.pm
 lib/Xmldoom/Definition/LinkTree.pm
 lib/Xmldoom/Definition/Object.pm
+lib/Xmldoom/Definition/PerlModuleParser.pm
 lib/Xmldoom/Definition/Property.pm
 lib/Xmldoom/Definition/Property/Object.pm
 lib/Xmldoom/Definition/Property/PlaceHolder.pm
@@ -81,6 +84,16 @@ share/javascript/xmldoom/Definition/Property.js
 share/javascript/xmldoom/Object.js
 share/javascript/xmldoom/RuntimeEngine.js
 test.pl
+test/BookStore/Author.pm
+test/BookStore/Book.pm
+test/BookStore/BookAgeProperty.pm
+test/BookStore/BooksOrdered.pm
+test/BookStore/Object.pm
+test/BookStore/Order.pm
+test/BookStore/Publisher.pm
+test/BookStore/PublisherIdGenerator.pm
+test/BookStore/Test1.pm
+test/example/BookStore.pm
 test/SQL/Translator/Parser/XML/Xmldoom.pm
 test/SQL/Translator/Producer/XML/Xmldoom.pm
 test/Xmldoom/Criteria.pm

@@ -23,7 +23,7 @@ sub get_value
 {
 	my ($self, $database, $lval) = @_;
 
-	# create the actual object when dealer with an unknown.
+	# create the actual object when dealing with an unknown.
 	if ( ref($self->{value}) and $self->{value}->isa('Xmldoom::Criteria::UnknownObject') )
 	{
 		my $object = $database->get_object( $lval->get_object_name() );

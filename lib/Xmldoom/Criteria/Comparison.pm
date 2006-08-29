@@ -122,7 +122,7 @@ sub get_query_rval
 	return \@rvals;
 }
 
-sub get_search_query
+sub generate
 {
 	my ($self, $database) = @_;
 
@@ -172,13 +172,13 @@ sub get_search_query
 
 sub get_tables
 {
-	my ($self, $database, $conn_tables, $from_tables) = @_;
+	my ($self, $database) = @_;
 
-	# lval's go into both lists
+	my @tables;
+
 	foreach my $table_name ( @{$self->get_lval()->get_tables( $database )} )
 	{
-		$conn_tables->{$table_name} = 1;
-		$from_tables->{$table_name} = 1;
+		push @tables, $table_name;
 	}
 
 	# rval's only go into the from_table list
@@ -186,9 +186,11 @@ sub get_tables
 	{
 		foreach my $table_name ( @{$rval->get_tables( $database )} )
 		{
-			$from_tables->{$table_name} = 1;
+			push @tables, $table_name;
 		}
 	}
+
+	return \@tables;
 }
 
 sub clone

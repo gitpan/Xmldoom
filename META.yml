@@ -20,13 +20,12 @@ no_index:
     - t
 requires:
   Carp: 0
-  DBIx::Romani: 0.0.14
+  DBIx::Romani: 0.0.15
   Data::Dumper: 0
   Exception::Class: 0
   Exception::Class::DBI: 0
   Exception::Class::TryCatch: 0
   Getopt::Long: 0
-  Getopt::Std: 0
   IO::File: 0
   Module::Runtime: 0
   SQL::Translator: 0
@@ -37,4 +36,4 @@ requires:
   XML::SAX::ExpatXS: 0
   XML::Writer: 0
   XML::Writer::String: 0
-version: 0.0.14
+version: 0.0.15

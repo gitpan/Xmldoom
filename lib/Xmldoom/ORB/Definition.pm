@@ -81,15 +81,19 @@ sub generate_object_hash
 
 			my $link = $prop->get_link();
 		
-			# TODO: hock for inter-table, where $link colud be undefined.
-			if ( defined $link )
+			# TODO: hock for inter-table, where (for now) we don't want to 
+			# pass many-to-many links to Javascript.
+			if ( $link->get_relationship() ne 'many-to-many' )
 			{
-				foreach my $conn ( @{$link->get_start()->get_column_names()} )
+				foreach my $key ( @{$link->get_foreign_keys()} )
 				{
-					push @{$prop_data->{connections}}, {
-						self  => $conn->{local_column},
-						other => $conn->{foreign_column},
-					};
+					foreach my $ref ( @{$key->get_column_names()} )
+					{
+						push @{$prop_data->{connections}}, {
+							self  => $ref->{local_column},
+							other => $ref->{foreign_column},
+						};
+					}
 				}
 			}
 		}

@@ -1,7 +1,6 @@
 
 package Xmldoom::Definition::Database;
 
-use Xmldoom::Definition::Table;
 use Xmldoom::Definition::Object;
 use Xmldoom::Definition::SAXHandler;
 use Xmldoom::Definition::LinkTree;
@@ -126,16 +125,160 @@ sub find_links
 		die "Cannot find connections between one or more non-existant tables";
 	}
 
-	my $links = $self->{real_links}->get_links($table1_name, $table2_name);
+	my $links;
+
+	# NOTE:  In case anyone is wondering, the links are seperated into three different
+	# trees inorder to seperate which pools of links is used for calculating the links
+	# in another pool.  Specifically, when we caclulate the inferred links we want to
+	# draw *only* on real links, and not other inferred links or many to many links.
+	# Similarily, when we calculate many to many links we only want to consider real links
+	# and inferred links but not other many to many links.
+
+	# check stored real links
+	$links = $self->{real_links}->get_links($table1_name, $table2_name);
 	if ( defined $links )
 	{
 		return $links;
 	}
 
-	# TODO: check inferred links
-	# TODO: check many-to-many links
+	# check stored inferred links
+	$links = $self->_find_inferred_links($table1_name, $table2_name);
+	if ( defined $links )
+	{
+		return $links;
+	}
 
+	# check stored many-to-many links
+	$links = $self->_find_many_to_many_links($table1_name, $table2_name);
+	if ( defined $links )
+	{
+		return $links;
+	}
+
+	# attempt to find new inferred links
 	return [];
+}
+
+sub _find_inferred_links
+{
+	my ($self, $table1_name, $table2_name) = @_;
+
+	# first check to see if there is a cached link available
+	my $cached_links = $self->{inferred_links}->get_links($table1_name, $table2_name);
+	if ( defined $cached_links )
+	{
+		return $cached_links;
+	}
+
+	my @ret;
+
+	# now, attempt to find an inferred link, begginning by grabing a list of all the tables
+	# that this table is links to.
+	my $link_hash = $self->{real_links}->get_links($table1_name);
+	while ( my ($inter_table, $links) = each %$link_hash )
+	{
+		for my $link ( @$links )
+		{
+			# here we check to see if there are any links and the linked table, to the desired
+			# table by way of the columns specified at the end of the original link.
+			my $other_links = $self->{real_links}->get_links($inter_table, $table2_name, $link->get_end_column_names());
+
+			# multiple links are ok --- they just mean that there are multiple inferred links,
+			# with the associated problems handled elsewhere, just as they would have to be
+			# with the relevent real links.
+			foreach my $other_link ( @$other_links )
+			{
+				if ( defined $other_link )
+				{
+					my $inferred_link = Xmldoom::Definition::Link->new(
+						Xmldoom::Schema::ForeignKey->new({
+							parent          => $self->get_schema()->get_table($table1_name),
+							reference_table => $table2_name,
+							local_columns   => $link->get_start_column_names(),
+							foreign_columns => $other_link->get_end_column_names()
+						})
+					);
+
+					# cache the result for later
+					$self->{inferred_links}->add_link( $link );
+
+					push @ret, $inferred_link;
+				}
+			}
+		}
+	}
+
+	if ( scalar @ret > 0 )
+	{
+		return \@ret;
+	}
+
+	return undef;
+}
+
+sub _find_many_to_many_links
+{
+	my ($self, $table1_name, $table2_name) = @_;
+
+	# first check to see if there is a cached link available
+	my $cached_links = $self->{many_to_many_links}->get_links($table1_name, $table2_name);
+	if ( defined $cached_links )
+	{
+		return $cached_links;
+	}
+
+	my @ret;
+
+	# get all the connections to other tables from the real links and the inferred links
+	# while purposely not checking the many-to-many links which would just create problems.
+	my $link_hash = { };
+	my $temp;
+	if ( defined ($temp = $self->{real_links}->get_links($table1_name)) )
+	{
+		$link_hash = { %$link_hash, %$temp };
+	}
+	if ( defined ($temp = $self->{inferred_links}->get_links($table1_name)) )
+	{
+		$link_hash = { %$link_hash, %$temp };
+	}
+
+	# we loop through simply looking for a table we are linked to which is also linked to
+	# the desired table.  We don't have to check to see if this "inferred" or truely "many
+	# to many" because we know that the inferred keys will be checked first.  This has the
+	# weakness of only working for single table "jumps," but any type of recursition scares
+	# me just now.
+	while ( my ($inter_table, $links) = each %$link_hash )
+	{
+		for my $link ( @$links )
+		{
+			my $other_links = $self->{real_links}->get_links($inter_table, $table2_name);
+
+			# return multiple links as we find them, to be dealt with by the calling code.
+			foreach my $other_link ( @$other_links )
+			{
+				if ( defined $other_link )
+				{
+					my $many_to_many_link = Xmldoom::Definition::Link->new([
+						$link->get_foreign_key(),
+						$other_link->get_foreign_key()
+					]);
+
+					# cache the result for later
+					$self->{many_to_many_links}->add_link( $many_to_many_link );
+
+					push @ret, $many_to_many_link;
+				}
+			}
+		}
+	}
+
+
+	if ( scalar @ret > 0 )
+	{
+		return \@ret;
+	}
+
+	return undef;
 }
 
 sub parse_object_string

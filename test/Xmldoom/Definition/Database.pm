@@ -76,6 +76,26 @@ sub startup : Test(startup)
 		/>
 	</table>
 
+	<table name="publisher_extra">
+		<column
+			name="publisher_id"
+			type="INTEGER"
+			primaryKey="true"
+		/>
+		<column
+			name="extra"
+			type="VARCHAR"
+			size="200"
+		/>
+
+		<foreign-key foreignTable="publisher">
+			<reference
+				local="publisher_id"
+				foreign="publisher_id"
+			/>
+		</foreign-key>
+	</table>
+
 	<table name="author">
 		<column
 			name="author_id"
@@ -198,6 +218,63 @@ sub testLinks2 : Test(1)
 	my $link  = $links->[0];
 
 	is( $link->get_relationship(), 'one-to-many' );
+}
+
+sub testLinks3 : Test(1)
+{
+	my $self = shift;
+
+	my $database = $self->{database};
+
+	my $links = $database->find_links('publisher_extra', 'publisher');
+	my $link  = $links->[0];
+
+	is ( $link->get_relationship(), 'one-to-one' );
+}
+
+sub testLinks4 : Test(6)
+{
+	my $self = shift;
+
+	my $database = $self->{database};
+
+	my $links = $database->find_links('publisher_extra', 'book');
+	my $link  = $links->[0];
+
+	is ( $link->get_relationship(), 'one-to-many' );
+
+	my $fn = $link->get_foreign_keys()->[0]->get_column_names();
+	is( scalar @$fn, 1 );
+	is( $fn->[0]->{local_table},    'publisher_extra' );
+	is( $fn->[0]->{local_column},   'publisher_id' );
+	is( $fn->[0]->{foreign_table},  'book' );
+	is( $fn->[0]->{foreign_column}, 'publisher_id' );
+}
+
+sub testLinks5 : Test(11)
+{
+	my $self = shift;
+
+	my $database = $self->{database};
+
+	my $links = $database->find_links('orders', 'book');
+	my $link  = $links->[0];
+
+	is ( $link->get_relationship(), 'many-to-many' );
+
+	my $fn1 = $link->get_foreign_keys()->[0]->get_column_names();
+	is( scalar @$fn1, 1 );
+	is( $fn1->[0]->{local_table},    'orders' );
+	is( $fn1->[0]->{local_column},   'order_id' );
+	is( $fn1->[0]->{foreign_table},  'books_ordered' );
+	is( $fn1->[0]->{foreign_column}, 'order_id' );
+
+	my $fn2 = $link->get_foreign_keys()->[1]->get_column_names();
+	is( scalar @$fn2, 1 );
+	is( $fn2->[0]->{local_table},    'books_ordered' );
+	is( $fn2->[0]->{local_column},   'book_id' );
+	is( $fn2->[0]->{foreign_table},  'book' );
+	is( $fn2->[0]->{foreign_column}, 'book_id' );
 }
 
 1;

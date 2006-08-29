@@ -8,6 +8,7 @@ use test::Xmldoom::Criteria;
 use test::Xmldoom::Object;
 use test::SQL::Translator::Parser::XML::Xmldoom;
 use test::SQL::Translator::Producer::XML::Xmldoom;
+use test::example::BookStore;
 
 use Carp;
 

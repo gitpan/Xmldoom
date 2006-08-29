@@ -68,18 +68,37 @@ sub add_link
 
 sub get_links
 {
-	my ($self, $table1, $table2) = @_;
+	my ($self, $table1, $table2, $start_columns) = @_;
 
 	if ( not defined $self->{links}->{$table1} )
 	{
 		return undef;
+	}
+	if ( not defined $table2 )
+	{
+		return $self->{links}->{$table1};
 	}
 	if ( not defined $self->{links}->{$table1}->{$table2} )
 	{
 		return undef;
 	}
 
-	return $self->{links}->{$table1}->{$table2};
+	my $links = $self->{links}->{$table1}->{$table2};
+
+	if ( defined $start_columns )
+	{
+		my @temp;
+		foreach my $link ( @$links )
+		{
+			if ( $link->is_start_column_names( $start_columns ) )
+			{
+				push @temp, $link;
+			}
+		}
+		$links = \@temp;
+	}
+
+	return $links;
 }
 
 1;

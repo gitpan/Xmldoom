@@ -398,9 +398,15 @@ sub _parse_constraint_value
 				}
 
 				if ( ($name eq 'equal' or $name eq 'not-equal') and 
+					 defined $node->getFirstChild() and
 				     $node->getFirstChild()->getNodeType == XML::DOM::ELEMENT_NODE )
 				{
 					$value = _parse_object( $node );
+				}
+				elsif ( $type eq $Xmldoom::Criteria::IS_NULL or 
+				        $type eq $Xmldoom::Criteria::IS_NOT_NULL )
+				{
+					# doen't do nothing because these can't take values
 				}
 				else
 				{
@@ -412,10 +418,10 @@ sub _parse_constraint_value
 		$node = $node->getNextSibling();
 	}
 
-	if ( $value eq '' )
-	{
-		$value = undef;
-	}
+	#if ( $value eq '' )
+	#{
+	#	$value = undef;
+	#}
 
 	return { type => $type, value => $value };
 }

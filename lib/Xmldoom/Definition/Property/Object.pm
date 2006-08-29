@@ -65,22 +65,20 @@ sub new
 
 	if ( scalar @$links == 0 )
 	{
-		# TODO: Should be an error, yo!
-		#die $self->{name} . ": There is no link between " . $parent->get_name() . " and " . $object_name . ".  Did you forget to setup a foreign-key?";
-		print STDERR  "WARNING: " . $self->{name} . ": There is no link between " . $parent->get_name() . " and " . $object_name . ".  Did you forget to setup a foreign-key?\n";
+		die $self->{name} . ": There is no link between " . $parent->get_name() . " and " . $object_name . ".  Did you forget to setup a foreign-key?";
 	}
 	elsif ( scalar @$links > 1 )
 	{
-		if ( not defined $key_attributes )
+		if ( not defined $key_attributes and not defined $inter_table )
 		{
 			die $self->{name} . ": It is ambiguous which connection to the foreign object is intended in this property.  You must specify a <key/> section to your <object/> property.";
 		}
 		else
 		{
-			# TODO: choose the appropriate link.
 			foreach my $possible ( @$links )
 			{
-				if ( $possible->get_start()->is_local_column_names( $key_attributes ) )
+				if ( defined $key_attributes and $possible->is_start_column_names( $key_attributes ) or
+				     defined $inter_table    and $possible->get_start()->get_reference_table_name() )
 				{
 					$link = $possible;
 					last;
@@ -89,7 +87,7 @@ sub new
 
 			if ( not $link )
 			{
-				die "It is ambiguous which connection to the foreign object is intended in this property.  The <key/> section of this <object/> property is insufficient to disambiguate.";
+				die "It is ambiguous which connection to the foreign object is intended in this property.  The <key/> section or inter_table='...' of this <object/> property is insufficient to disambiguate.";
 			}
 		}
 	}
@@ -101,6 +99,11 @@ sub new
 		}
 
 		$link = $links->[0];
+	}
+	
+	if ( defined $inter_table and $link->get_relationship() ne 'many-to-many' )
+	{
+		die "You set inter_table='...' on this property but it isn't a many-to-many relationship";
 	}
 
 	# we need to know how this object relates the other
@@ -285,7 +288,7 @@ sub get
 			
 			# simply load the data
 			my $object_key = { };
-			foreach my $conn ( @{$self->{link}->get_start()->get_column_names()} )
+			foreach my $conn ( @{$self->{link}->get_column_names()} )
 			{
 				$object_key->{$conn->{foreign_column}} = $object->_get_attr($conn->{local_column});
 			}
@@ -338,41 +341,22 @@ sub get
 				}
 			}
 
-			# connect via the intertable
-			if ( defined $self->{inter_table} )
+			# if this is many-to-many, then we manually join the tables because
+			# we want to make sure the selected connection is used.
+			if ( $self->{link}->get_relationship() eq 'many-to-many' )
 			{
-				# TODO: this should work, but doesn't!  There are problems with our
-				# implementation of Criteria in this regard, but I don't have the mind
-				# to debug it right now.
-
-				my $parent_table_name = $self->get_parent()->get_table_name();
-				my $object_table_name = $database->get_object( $self->{object_name} )->get_table_name();
-
-				# join the parent table to the inter-table
-				my $parent_link = $database->find_links( $parent_table_name, $self->{inter_table} )->[0];
-				foreach my $conn ( @{$parent_link->get_start()->get_column_names()} )
+				foreach my $fn ( @{$self->{link}->get_foreign_keys()} )
 				{
-					$criteria->join_attr(
-						sprintf("%s/%s", $conn->{local_table},   $conn->{local_column}),
-						sprintf("%s/%s", $conn->{foreign_table}, $conn->{foreign_column})
-					);
-
-					#print Dumper $conn;
-				}
-
-				# join the inter-table to the object table
-				my $object_link = $database->find_links( $self->{inter_table}, $object_table_name )->[0];
-				foreach my $conn ( @{$object_link->get_start()->get_column_names()} )
-				{
-					$criteria->join_attr(
-						sprintf("%s/%s", $conn->{local_table},   $conn->{local_column}),
-						sprintf("%s/%s", $conn->{foreign_table}, $conn->{foreign_column})
-					);
-
-					#print Dumper $conn;
+					foreach my $ref ( @{$fn->get_column_names()} )
+					{
+						$criteria->join_attr(
+							sprintf( "%s/%s", $ref->{local_table}, $ref->{local_column} ),
+							sprintf( "%s/%s", $ref->{foreign_table}, $ref->{foreign_column} )
+						);
+					}
 				}
 			}
-			
+
 			# execute
 			@ret = $class->Search( $criteria );
 		}
@@ -400,7 +384,7 @@ sub set
 		my $value = $args;
 
 		# link the attributes of the value to ours
-		foreach my $conn ( @{$self->{link}->get_start()->get_column_names()} )
+		foreach my $conn ( @{$self->{link}->get_column_names()} )
 		{
 			$object->_link_attr( $conn->{local_column}, $value, $conn->{foreign_column} );
 		}

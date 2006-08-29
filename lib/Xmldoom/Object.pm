@@ -45,6 +45,11 @@ sub load
 	# The object definition does all of the actual work with regard to 
 	# querying the database and getting the data.  We just pass it along
 	# to the correct Perl class.
+
+	if ( not defined $OBJECTS{$class} )
+	{
+		die "Cannot load() $class: No definition attached to Perl class";
+	}
 	
 	my $definition = $OBJECTS{$class};
 	my $data       = $definition->load( @_ );
@@ -259,9 +264,9 @@ sub new
 		}
 
 		# TODO: a hack for inter_table where we won't have a parent link for now!
-		if ( defined $parent_link )
+		if ( defined $parent_link and $parent_link->get_count() == 1 )
 		{
-			foreach my $pconn ( @{$parent_link->get_start()->get_column_names()} )
+			foreach my $pconn ( @{$parent_link->get_column_names()} )
 			{
 				$self->_link_attr( $pconn->{local_column}, $self->{parent}, $pconn->{foreign_column} );
 			}
@@ -827,16 +832,19 @@ sub AUTOLOAD
 	my $self     = shift;
 	my $function = our $AUTOLOAD;
 
-	# remove the package name
-	$function =~ s/.*:://;
-
-	foreach my $prop ( @{$self->{props}} )
+	if ( defined $self and $self->isa('Xmldoom::Object') )
 	{
-		foreach my $autoload_name ( @{$prop->get_autoload_list()} )
+		# remove the package name
+		$function =~ s/.*:://;
+
+		foreach my $prop ( @{$self->{props}} )
 		{
-			if ( $function eq $autoload_name )
+			foreach my $autoload_name ( @{$prop->get_autoload_list()} )
 			{
-				return $prop->autoload( $function, @_ );
+				if ( $function eq $autoload_name )
+				{
+					return $prop->autoload( $function, @_ );
+				}
 			}
 		}
 	}

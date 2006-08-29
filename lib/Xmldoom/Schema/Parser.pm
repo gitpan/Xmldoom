@@ -1,6 +1,5 @@
 
 package Xmldoom::Schema::Parser;
-use base qw(SQL::Translator::Parser);
 
 use Xmldoom::Schema;
 use Xmldoom::Schema::SAXHandler;

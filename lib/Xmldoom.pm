@@ -3,6 +3,8 @@ package Xmldoom;
 
 # This file only exists to make CPAN happy ...
 
+our $VERSION = '0.0.15';
+
 1;
 
 __END__
@@ -109,6 +111,10 @@ fit for your project, try out some of these other great Perl packages:
 
 =item *
 
+L<ORM>
+
+=item *
+
 L<Class::DBI>
 
 =item *
@@ -118,10 +124,6 @@ L<Rose::DB::Object>
 =item *
 
 L<OOPS>
-
-=item *
-
-L<ORM>
 
 =item *
 
