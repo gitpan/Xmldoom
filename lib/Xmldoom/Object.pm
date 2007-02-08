@@ -62,6 +62,32 @@ sub load
 	return $result;
 }
 
+sub load_or_new
+{
+	my ($class, $args) = @_;
+
+	my $obj;
+
+	try eval
+	{
+		$obj = $class->load( $args );
+	};
+	if ( my $err = catch )
+	{
+		$obj = $class->new();
+
+		foreach my $key_name ( @{$obj->_get_key_names()} )
+		{
+			if ( defined $args->{$key_name} )
+			{
+				$obj->_set_attr( $key_name, $args->{$key_name} );
+			}
+		}
+	}
+
+	return $obj;
+}
+
 sub SearchRS
 {
 	my $class    = shift;
@@ -130,6 +156,11 @@ sub SearchAttrs
 	{
 		push @ret, $rs->get_row();
 	}
+
+	# TODO: Some reference is being held somewhere!  I can't 
+	# seem to figure this one out.
+	$rs->{conn}->disconnect();
+	#$rs = undef;
 
 	return wantarray ? @ret : \@ret;
 }
@@ -306,6 +337,9 @@ sub copy
 sub _get_definition  { return shift->{definition}; }
 sub _get_database    { return shift->{definition}->get_database(); }
 sub _get_object_name { return shift->{definition}->get_name(); }
+sub _get_table       { return shift->{definition}->get_table(); };
+sub _get_key_names   { return shift->_get_table()->get_column_names({ primary_key => 1 }); }
+sub _get_data_names  { return shift->_get_table()->get_column_names({ data_only   => 1 }); }
 sub _get_properties  { return shift->{props}; }
 sub _get_original    { return shift->{original}; }
 sub _get_key         { return shift->{key}; }
@@ -547,8 +581,11 @@ sub save
 		{
 			while ( scalar @{$self->{dependents}} )
 			{
-				my $child = pop @{$self->{dependents}};
+				#my $child = shift @{$self->{dependents}};
+				my $child = $self->{dependents}->[0];
 				$child->save({ conn => $conn, commit => 0 });
+
+				shift @{$self->{dependents}};
 			}
 		}
 
@@ -776,6 +813,15 @@ sub delete
 sub _add_dependent
 {
 	my ($self, $child) = @_;
+
+	# don't double add children
+	foreach my $dep ( @{$self->{dependents}} )
+	{
+		if ( $child == $dep )
+		{
+			return;
+		}
+	}
 	push @{$self->{dependents}}, $child;
 }
 
@@ -799,7 +845,7 @@ sub set
 	foreach my $prop ( @{$self->{props}} )
 	{
 		my $prop_name = $prop->get_name();
-		if ( defined $args->{$prop_name} )
+		if ( exists $args->{$prop_name} )
 		{
 			$prop->set( $args->{$prop_name} );
 			delete $args->{$prop_name};

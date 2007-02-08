@@ -49,6 +49,7 @@ sub new
 		prop_args   => undef,
 		dom_doc     => undef,
 		dom_stack   => [],
+		ignore_obj  => 0,
 		in_criteria => 0,
 	};
 
@@ -81,6 +82,12 @@ sub start_element
 	# simple aliases
 	my $name = $el->{'LocalName'};
 	my $attrs = $el->{'Attributes'};
+
+	# automatically return if we are ignoring the object
+	if ( $self->{ignore_obj} )
+	{
+		return;
+	}
 
 	# if we are in criteria, we operate in super quaazy mode
 	if ( $self->{in_criteria} )
@@ -119,19 +126,35 @@ sub start_element
 			my $object_name = $attrs->{'{}name'}->{Value};
 			my $table_name  = $attrs->{'{}table'}->{Value};
 
-			my $object = $self->{database}->create_object( $object_name, $table_name );
-
-			# set the Perl class
-			if ( $attrs->{"{$OBJECT_PERL_NS}class"} )
+			if ( $self->{database}->has_table( $table_name ) )
 			{
-				Xmldoom::Object::BindToObject( $attrs->{"{$OBJECT_PERL_NS}class"}->{Value}, $object );
+				my $object = $self->{database}->create_object( $object_name, $table_name );
+
+				# set the Perl class
+				if ( $attrs->{"{$OBJECT_PERL_NS}class"} )
+				{
+					Xmldoom::Object::BindToObject( $attrs->{"{$OBJECT_PERL_NS}class"}->{Value}, $object );
+				}
+			}
+			else
+			{
+				print STDERR "WARNING: Can't find table '$table_name' in the database schema, so we are ignoring the '$object_name' object definition\n";
 			}
 		}
 		elsif ( $self->{phase} == 2 )
 		{
 			# retrieve and set as the current object
-			my $object_name  = $attrs->{'{}name'}->{Value};
-			$self->{cur_obj} = $self->{database}->get_object( $object_name );
+			my $object_name = $attrs->{'{}name'}->{Value};
+
+			if ( $self->{database}->has_object( $object_name ) )
+			{
+				$self->{cur_obj} = $self->{database}->get_object( $object_name );
+				$self->{ignore_obj} = 0;
+			}
+			else
+			{
+				$self->{ignore_obj} = 1;
+			}
 		}
 	}
 	elsif ( $name eq 'property' )
@@ -477,6 +500,7 @@ sub end_element
 	if ( $name eq 'object' and not $self->{prop_name} )
 	{
 		$self->{cur_obj} = undef;
+		$self->{ignore_obj} = 0;
 	}
 	elsif ( $name eq 'property' )
 	{
@@ -484,7 +508,7 @@ sub end_element
 	}
 	elsif ( $name eq 'simple' or $name eq 'custom' or ( $name eq 'object' and $self->{prop_name} ) )
 	{
-		if ( $self->{phase} == 1 )
+		if ( $self->{phase} == 1 or $self->{ignore_obj} )
 		{
 			# we skip over these in phase 1 !!
 			return;

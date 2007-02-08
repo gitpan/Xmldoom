@@ -6,6 +6,7 @@ use DBIx::Romani::Query::Variable;
 use DBIx::Romani::Query::SQL::Column;
 use Module::Runtime qw(use_module);
 use Scalar::Util qw(weaken isweak);
+use Exception::Class::TryCatch;
 use strict;
 
 use Data::Dumper;
@@ -292,7 +293,16 @@ sub get
 			{
 				$object_key->{$conn->{foreign_column}} = $object->_get_attr($conn->{local_column});
 			}
-			my $data = $self->get_object_definition()->load( $object_key );
+
+			my $data;
+			try eval
+			{
+				$data = $self->get_object_definition()->load( $object_key );
+			};
+			if ( my $err = catch )
+			{
+				return undef;
+			}
 
 			# return the appropriate object
 			return $class->new(undef, {

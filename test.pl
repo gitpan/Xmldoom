@@ -6,6 +6,7 @@ use test::Xmldoom::Definition::Object;
 use test::Xmldoom::Definition::SAXHandler;
 use test::Xmldoom::Criteria;
 use test::Xmldoom::Object;
+use test::Xmldoom::Javascript;
 use test::SQL::Translator::Parser::XML::Xmldoom;
 use test::SQL::Translator::Producer::XML::Xmldoom;
 use test::example::BookStore;

@@ -24,6 +24,8 @@ dojo.declare('Xmldoom.Definition.Property.Simple', Xmldoom.Definition.Property.B
 {
 	initializer: function (args)
 	{
+		Xmldoom.Definition.Property.Base.prototype.initializer.call(this, args);
+
 		this.attribute      = args.attribute;
 		this.trans_to_map   = args.trans_to;
 		this.trans_from_map = args.trans_from;
@@ -68,6 +70,8 @@ dojo.declare('Xmldoom.Definition.Property.Object', Xmldoom.Definition.Property.B
 {
 	initializer: function (args)
 	{
+		Xmldoom.Definition.Property.Base.prototype.initializer.call(this, args);
+
 		this.object_name = args.object_name;
 		this.type        = args.object_type;
 		this.connections = args.connections;

@@ -7,7 +7,7 @@ Xmldoom::doc::GettingStarted - A step-by-step tutorial to setting up Xmldoom.
 
 In the end, you want to have a Perl package made up of custom objects which are 
 backed by the database.  You want these object to work straight-out of the box, with no
-concern to connecting to the database, our initializing Xmldoom --- just B<use> your 
+concern to connecting to the database, or initializing Xmldoom --- just B<use> your 
 package, B<new()> some objects, and away you go!
 
 Unfortunately, some setup is required to get Xmldoom going in the first place.  Here is 

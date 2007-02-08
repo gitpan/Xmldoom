@@ -4,6 +4,8 @@ package Xmldoom::ORB::Definition;
 use Xmldoom::ORB::Definition::JSON;
 use strict;
 
+use Data::Dumper;
+
 sub generate_object_hash
 {
 	my $object = shift;

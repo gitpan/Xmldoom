@@ -508,8 +508,7 @@ sub search_attrs_rs
 		$rs = $conn->prepare( $query )->execute();
 	};
 
-	catch my $err;
-	if ( $err )
+	if ( my $err = catch )
 	{
 		$conn->disconnect() if defined $conn;
 		$err->rethrow();

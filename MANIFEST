@@ -26,6 +26,9 @@ lib/SQL/Translator/Parser/XML/Xmldoom.pm
 lib/SQL/Translator/Producer/XML/Propel.pm
 lib/SQL/Translator/Producer/XML/Torque.pm
 lib/SQL/Translator/Producer/XML/Xmldoom.pm
+lib/Thread/Shared.pm
+lib/Thread/Shared/Array.pm
+lib/Thread/Shared/Hash.pm
 lib/Xmldoom.pm
 lib/Xmldoom/Criteria.pm
 lib/Xmldoom/Criteria/Attribute.pm
@@ -100,5 +103,6 @@ test/Xmldoom/Criteria.pm
 test/Xmldoom/Definition/Database.pm
 test/Xmldoom/Definition/Object.pm
 test/Xmldoom/Definition/SAXHandler.pm
+test/Xmldoom/Javascript.pm
 test/Xmldoom/Object.pm
 test/Xmldoom/Schema/Parser.pm

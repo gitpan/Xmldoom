@@ -1,10 +1,13 @@
 abstract: 'Xmldoom is a framework that allows you to bind database tables to Perl objects, a technique commonly referred to as object persistence, similar in purpose to Propel and Apache Torque'
 author: David Snopek
 build_requires:
+  Callback: 0
   Carp: 0
   DBD::SQLite: 0
   Data::Dumper: 0
+  Date::Calc: 0
   ExtUtils::MakeMaker: 6.11
+  Module::Util: 0
   POSIX::strptime: 0
   Test::Class: 0
   Test::More: 0
@@ -20,7 +23,7 @@ no_index:
     - t
 requires:
   Carp: 0
-  DBIx::Romani: 0.0.15
+  DBIx::Romani: 0.0.16
   Data::Dumper: 0
   Exception::Class: 0
   Exception::Class::DBI: 0
@@ -36,4 +39,4 @@ requires:
   XML::SAX::ExpatXS: 0
   XML::Writer: 0
   XML::Writer::String: 0
-version: 0.0.15
+version: 0.0.16
